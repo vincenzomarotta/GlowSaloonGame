@@ -36,7 +36,7 @@ public class Room : MonoBehaviour
         float w = xMax - XMin, cx = (xMax + XMin) / 2;
         var paint = Cosmetics.Equipped(Cosmetics.Walls).a;
         var tiles = Cosmetics.Equipped(Cosmetics.Floors);
-        Color back = paint, wall = Color.Lerp(paint, Color.white, 0.65f), trim = Fx.Gold;
+        Color back = paint, wall = Color.Lerp(paint, Color.white, 0.3f), trim = Fx.Gold;
 
         // Floor runs under the walls and the walls sink below it, so no seam shows at the base.
         var floor = Fx.Box(shell, new(cx, -0.05f, zMax / 2), new(w + 0.6f, 0.1f, zMax + 0.6f), Color.white);
