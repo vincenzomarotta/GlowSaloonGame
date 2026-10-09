@@ -534,17 +534,19 @@ public class Game : MonoBehaviour
     void BuildWorld()
     {
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.6f, 0.56f, 0.66f);
-        RenderSettings.ambientEquatorColor = new Color(0.56f, 0.52f, 0.6f);
-        RenderSettings.ambientGroundColor = new Color(0.42f, 0.38f, 0.46f);
+        // Cool ambient plus a warm, lower sun that sum to about 1 on top faces: pastels keep their color
+        // instead of blowing out to white, and the sides fall into shade for depth.
+        RenderSettings.ambientSkyColor = new Color(0.46f, 0.45f, 0.56f);
+        RenderSettings.ambientEquatorColor = new Color(0.42f, 0.4f, 0.48f);
+        RenderSettings.ambientGroundColor = new Color(0.3f, 0.27f, 0.33f);
 
         var sun = new GameObject("Sun").AddComponent<Light>();
         sun.type = LightType.Directional;
-        sun.intensity = 0.7f;
-        sun.color = new Color(1f, 0.95f, 0.9f);
+        sun.intensity = 0.65f;
+        sun.color = new Color(1f, 0.92f, 0.82f);
         sun.shadows = LightShadows.Soft;
-        sun.shadowStrength = 0.45f;
-        sun.transform.rotation = Quaternion.Euler(60, -30, 0);
+        sun.shadowStrength = 0.6f;
+        sun.transform.rotation = Quaternion.Euler(50, -30, 0);
 
         cam = new GameObject("Camera").AddComponent<Camera>();
         cam.tag = "MainCamera";

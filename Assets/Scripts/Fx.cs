@@ -9,19 +9,45 @@ public static class Fx
 {
     static Material baseMat;
     static Font font;
-    static readonly Dictionary<Color, Material> mats = new();
+    static readonly Dictionary<Color, Material> mats = new(), mottledMats = new();
+    static Texture2D mottle;
 
     public static Font Font => font ??= Resources.Load<Font>("Fredoka");
 
     public static Color Hex(string hex) => ColorUtility.TryParseHtmlString(hex, out var c) ? c : Color.magenta;
 
-    public static Material Mat(Color c)
+    public static Material Mat(Color c) => Mat(c, mats, null);
+
+    // Rounded boxes (walls, furniture) get a faint mottling so big flat surfaces read as painted, not plastic.
+    static Material Mottled(Color c) => Mat(c, mottledMats, mottle ??= Mottle());
+
+    static Material Mat(Color c, Dictionary<Color, Material> cache, Texture tex)
     {
-        if (mats.TryGetValue(c, out var m)) return m;
+        if (cache.TryGetValue(c, out var m)) return m;
         baseMat ??= Resources.Load<Material>("Base");
         m = new Material(baseMat) { color = c };
-        mats[c] = m;
-        return m;
+        if (tex)
+        {
+            m.mainTexture = tex;
+            m.mainTextureScale = Vector2.one * 0.5f;
+        }
+        return cache[c] = m;
+    }
+
+    // Random 16x16 values, bilinear and tiling: soft blotches about 12 cm wide on world-unit UVs.
+    static Texture2D Mottle()
+    {
+        const int n = 16;
+        var tex = new Texture2D(n, n) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear };
+        var rng = new System.Random(7);
+        for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float v = 0.95f + 0.05f * (float)rng.NextDouble();
+                tex.SetPixel(x, y, new Color(v, v, v));
+            }
+        tex.Apply();
+        return tex;
     }
 
     public static bool Near(Vector3 a, Vector3 b, float radius)
@@ -52,7 +78,7 @@ public static class Fx
         go.transform.SetParent(p, false);
         go.transform.localPosition = pos;
         go.AddComponent<MeshFilter>().sharedMesh = RoundedBox(size);
-        go.AddComponent<MeshRenderer>().sharedMaterial = Mat(c);
+        go.AddComponent<MeshRenderer>().sharedMaterial = Mottled(c);
         if (solid) go.AddComponent<BoxCollider>().size = size;
         return go;
     }

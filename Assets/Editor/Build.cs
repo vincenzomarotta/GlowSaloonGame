@@ -54,7 +54,10 @@ public static class Build
             mat = new Material(Shader.Find("Standard")) { enableInstancing = true };
             AssetDatabase.CreateAsset(mat, matPath);
         }
-        mat.SetFloat("_Glossiness", 0.3f); // soft satin sheen
+        // Matte finish: low gloss and no environment reflections (their bright rims made everything look like plastic).
+        mat.SetFloat("_Glossiness", 0.12f);
+        mat.SetFloat("_GlossyReflections", 0);
+        mat.EnableKeyword("_GLOSSYREFLECTIONS_OFF");
         EditorUtility.SetDirty(mat);
 
         if (!File.Exists(ScenePath))
