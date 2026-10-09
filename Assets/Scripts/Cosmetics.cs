@@ -34,14 +34,14 @@ public static class Cosmetics
 
     public static readonly Item[] Walls =
     {
-        new("w0", "Lavanda", 0, "#EBDDF8"), new("w1", "Pesca", 1500, "#FFE1D0"), new("w2", "Menta", 1500, "#D8F3E6"),
-        new("w3", "Cielo", 2500, "#DCEBFF"), new("w4", "Rosa", 2500, "#FFD6E5"), new("w5", "Crema", 4000, "#FFF4D6"),
+        new("w0", "Avorio", 0, "#F3EBDD"), new("w1", "Champagne", 1500, "#EAD9BF"), new("w2", "Cipria", 1500, "#EBCFC8"),
+        new("w3", "Salvia", 2500, "#D3DCCB"), new("w4", "Perla", 2500, "#DEDBD6"), new("w5", "Blu notte", 4000, "#36405E"),
     };
 
     public static readonly Item[] Floors =
     {
-        new("f0", "Rosa", 0, "#F9DCE6", "#EFC4D3"), new("f1", "Lilla", 2000, "#EDE3FB", "#DCCBF3"), new("f2", "Menta", 2000, "#E0F5EA", "#C8EBD8"),
-        new("f3", "Legno", 3500, "#F1DCC4", "#E2C6A8"), new("f4", "Marmo", 5000, "#F7F7FA", "#E2E2EC"), new("f5", "Cielo", 3500, "#E3EEFF", "#CBDDF7"),
+        new("f0", "Noce", 0, "#6E4B36", "#5B3C2A"), new("f1", "Rovere", 2000, "#B08860", "#9C7550"), new("f2", "Miele", 2000, "#C99A62", "#B5864F"),
+        new("f3", "Ebano", 3500, "#3E2C24", "#33241D"), new("f4", "Marmo", 5000, "#F4F1EC", "#E3DED6"), new("f5", "Marmo nero", 3500, "#2A2629", "#3A3438"),
     };
 
     // Toggleable once bought.

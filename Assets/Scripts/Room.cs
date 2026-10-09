@@ -36,13 +36,14 @@ public class Room : MonoBehaviour
         float w = xMax - XMin, cx = (xMax + XMin) / 2;
         var paint = Cosmetics.Equipped(Cosmetics.Walls).a;
         var tiles = Cosmetics.Equipped(Cosmetics.Floors);
-        Color back = paint, wall = Color.Lerp(paint, Color.white, 0.65f), trim = Fx.Hex("#F7B6C8");
+        Color back = paint, wall = Color.Lerp(paint, Color.white, 0.65f), trim = Fx.Gold;
 
         // Floor runs under the walls and the walls sink below it, so no seam shows at the base.
         var floor = Fx.Box(shell, new(cx, -0.05f, zMax / 2), new(w + 0.6f, 0.1f, zMax + 0.6f), Color.white);
         if (floorMat) Destroy(floorMat.mainTexture);
         floorMat ??= new Material(Fx.Mat(Color.white)) { mainTextureScale = Vector2.one * 0.5f };
-        floorMat.mainTexture = Tiles(tiles.a, tiles.b);
+        floorMat.SetFloat("_Glossiness", 0.45f); // polished
+        floorMat.mainTexture = tiles.name.StartsWith("Marmo") ? Tiles(tiles.a, tiles.b) : Planks(tiles.a, tiles.b);
         floor.GetComponent<Renderer>().sharedMaterial = floorMat;
 
         var walls = new[]
@@ -60,11 +61,11 @@ public class Room : MonoBehaviour
         Fx.Box(shell, new(cx, 3.24f, zMax + 0.15f), new(w + 0.6f, 0.1f, 0.36f), trim);
 
         // Sign on the back wall.
-        Fx.Box(shell, new(cx, 2.6f, zMax - 0.02f), new(5.6f, 0.85f, 0.12f), Fx.Hex("#FF8FB8"));
-        Fx.Text(shell, new(cx, 2.6f, zMax - 0.1f), Game.I.SalonTitle, 0.09f, Color.white, Quaternion.identity);
+        Fx.Box(shell, new(cx, 2.6f, zMax - 0.02f), new(5.6f, 0.85f, 0.12f), Fx.Lacquer);
+        Fx.Text(shell, new(cx, 2.6f, zMax - 0.1f), Game.I.SalonTitle, 0.09f, Fx.Gold, Quaternion.identity);
 
         // Entrance rug; customers have no physics, so only the player is stopped at the door.
-        Fx.Box(shell, new(0, 0.012f, 1f), new(2.4f, 0.02f, 1.4f), Fx.Hex("#FF8FB8"));
+        Fx.Box(shell, new(0, 0.012f, 1f), new(2.4f, 0.02f, 1.4f), Fx.Wine);
         var doorBlock = new GameObject("DoorBlock").AddComponent<BoxCollider>();
         doorBlock.transform.SetParent(shell, false);
         doorBlock.transform.localPosition = new(0, 0.6f, -0.2f);
@@ -145,7 +146,7 @@ public class Room : MonoBehaviour
 
     void Plant(Vector3 pos)
     {
-        Fx.Cyl(shell, pos + new Vector3(0, 0.3f, 0), new(0.6f, 0.3f, 0.6f), Fx.Hex("#F3E1D0"), true);
+        Fx.Cyl(shell, pos + new Vector3(0, 0.3f, 0), new(0.6f, 0.3f, 0.6f), Fx.Lacquer, true);
         Fx.Ball(shell, pos + new Vector3(0, 0.95f, 0), 0.9f, Fx.Hex("#7BC67E"));
         Fx.Ball(shell, pos + new Vector3(0.2f, 1.35f, 0.1f), 0.55f, Fx.Hex("#8FD694"));
     }
@@ -170,6 +171,28 @@ public class Room : MonoBehaviour
         var gold = Fx.Hex("#FFC93C");
         Fx.Box(shell, pos + new Vector3(0, 2.52f, 0), new(0.3f, 0.3f, 0.08f), gold).transform.localRotation = Quaternion.Euler(0, 0, 45);
         Fx.Ball(shell, pos + new Vector3(0, 2.52f, 0), 0.2f, Color.white);
+    }
+
+    // Parquet: 8 staggered planks per texture (25 cm each at the floor's UV scale), shaded between a and b.
+    static Texture2D Planks(Color a, Color b)
+    {
+        const int n = 64, h = n / 8;
+        var tex = new Texture2D(n, n) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Trilinear, anisoLevel = 4 };
+        var rng = new System.Random(5);
+        var seam = Color.Lerp(b, Color.black, 0.35f);
+        for (int row = 0; row < 8; row++)
+        {
+            int cut = (row * 23) % n; // staggered plank ends
+            var shade = Color.Lerp(a, b, (float)rng.NextDouble());
+            for (int y = row * h; y < row * h + h; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float grain = 0.96f + 0.04f * Mathf.Sin(x * 0.7f + y * 2.3f + row);
+                    tex.SetPixel(x, y, y == row * h || x == cut ? seam : shade * grain);
+                }
+        }
+        tex.Apply();
+        return tex;
     }
 
     // One tile with a thin grout line; the floor mesh has world-unit UVs.

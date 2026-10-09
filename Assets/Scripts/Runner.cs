@@ -16,8 +16,8 @@ public class Runner : MonoBehaviour
 
     public static void Create(Vector3 pos, bool pop)
     {
-        var w = Fx.Person(pos, Fx.Hex("#B9A2E8"), Fx.NaturalHair(), Fx.Skin(), false);
-        Fx.Box(w.model, new(0, 1.42f, 0.05f), new(0.5f, 0.12f, 0.5f), Fx.Hex("#FF6FB5")); // cap
+        var w = Fx.Person(pos, Fx.Champagne, Fx.NaturalHair(), Fx.Skin(), false);
+        Fx.Box(w.model, new(0, 1.42f, 0.05f), new(0.5f, 0.12f, 0.5f), Fx.Wine); // cap
         w.speed = 3.6f;
         var r = w.gameObject.AddComponent<Runner>();
         r.walker = w;
