@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
@@ -533,19 +532,11 @@ public class Game : MonoBehaviour
 
     void BuildWorld()
     {
-        RenderSettings.ambientMode = AmbientMode.Trilight;
-        // Cool ambient plus a warm, lower sun that sum to about 1 on top faces: pastels keep their color
-        // instead of blowing out to white, and the sides fall into shade for depth.
-        RenderSettings.ambientSkyColor = new Color(0.46f, 0.45f, 0.56f);
-        RenderSettings.ambientEquatorColor = new Color(0.42f, 0.4f, 0.48f);
-        RenderSettings.ambientGroundColor = new Color(0.3f, 0.27f, 0.33f);
-
+        // The watercolor shader picks its own lit/shade colors; the sun only gives direction and shadows.
         var sun = new GameObject("Sun").AddComponent<Light>();
         sun.type = LightType.Directional;
-        sun.intensity = 0.65f;
-        sun.color = new Color(1f, 0.92f, 0.82f);
         sun.shadows = LightShadows.Soft;
-        sun.shadowStrength = 0.6f;
+        sun.shadowStrength = 0.85f;
         sun.transform.rotation = Quaternion.Euler(50, -30, 0);
 
         cam = new GameObject("Camera").AddComponent<Camera>();

@@ -45,19 +45,17 @@ public static class Build
     [MenuItem("Glow Salon/Setup Project")]
     public static void Setup()
     {
-        // Runtime materials are cloned from this one; living in Resources keeps the Standard shader in the build.
+        // Runtime materials are cloned from this one; living in Resources keeps its shader in the build.
         Directory.CreateDirectory("Assets/Resources");
         const string matPath = "Assets/Resources/Base.mat";
+        var shader = Shader.Find("Glow/Watercolor");
         var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
         if (!mat)
         {
-            mat = new Material(Shader.Find("Standard")) { enableInstancing = true };
+            mat = new Material(shader) { enableInstancing = true };
             AssetDatabase.CreateAsset(mat, matPath);
         }
-        // Matte finish: low gloss and no environment reflections (their bright rims made everything look like plastic).
-        mat.SetFloat("_Glossiness", 0.12f);
-        mat.SetFloat("_GlossyReflections", 0);
-        mat.EnableKeyword("_GLOSSYREFLECTIONS_OFF");
+        mat.shader = shader;
         EditorUtility.SetDirty(mat);
 
         if (!File.Exists(ScenePath))
