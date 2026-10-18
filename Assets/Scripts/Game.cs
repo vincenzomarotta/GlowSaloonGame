@@ -15,7 +15,7 @@ public class Game : MonoBehaviour
     public const string SalonName = "Nenni's Saloon"; // app name
 
     // Each new salon (prestige) gets a name, a lawn color and one more x of income.
-    static readonly string[] Lawns = { "#7FA88A", "#A8A27A", "#8497B0", "#A88A92" };
+    static readonly string[] Lawns = { "#A9DFC0", "#F3E3B5", "#C9D7F2", "#F7C9D9" };
     public static string[] ServiceName => Theme.Service;
     public static readonly int[] UpgradeBase = { 300, 600, 1000, 1400 };
 
@@ -27,7 +27,7 @@ public class Game : MonoBehaviour
     public static string[] ProductName => Theme.Product;
     public static readonly int[] Price = { 6, 14, 22, 32 };
     public static readonly float[] ServiceTime = { 1.6f, 2.2f, 2.8f, 2.4f };
-    public static readonly Color[] Tint = { Fx.Hex("#C2557A"), Fx.Hex("#7E5A9B"), Fx.Hex("#2F8C6E"), Fx.Hex("#C8963E") };
+    public static readonly Color[] Tint = { Fx.Hex("#FF4F8B"), Fx.Hex("#B388FF"), Fx.Hex("#4CC99A"), Fx.Hex("#E8A33D") };
 
     // Test aid: launch with -autoplay and the player walks to whatever the guide arrow points at.
     public static readonly bool Autoplay = Environment.GetCommandLineArgs().Contains("-autoplay");
@@ -534,19 +534,17 @@ public class Game : MonoBehaviour
     void BuildWorld()
     {
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        // Warm evening: low golden sun, dim warm ambient. Ambient + sun stay under 1 on top faces
-        // (above that colors blow out to white and look plastic).
-        RenderSettings.ambientSkyColor = new Color(0.44f, 0.4f, 0.42f);
-        RenderSettings.ambientEquatorColor = new Color(0.42f, 0.36f, 0.34f);
-        RenderSettings.ambientGroundColor = new Color(0.26f, 0.21f, 0.2f);
+        RenderSettings.ambientSkyColor = new Color(0.6f, 0.56f, 0.66f);
+        RenderSettings.ambientEquatorColor = new Color(0.56f, 0.52f, 0.6f);
+        RenderSettings.ambientGroundColor = new Color(0.42f, 0.38f, 0.46f);
 
         var sun = new GameObject("Sun").AddComponent<Light>();
         sun.type = LightType.Directional;
-        sun.intensity = 0.8f;
-        sun.color = new Color(1f, 0.84f, 0.64f);
+        sun.intensity = 0.7f;
+        sun.color = new Color(1f, 0.95f, 0.9f);
         sun.shadows = LightShadows.Soft;
-        sun.shadowStrength = 0.7f;
-        sun.transform.rotation = Quaternion.Euler(40, -35, 0);
+        sun.shadowStrength = 0.45f;
+        sun.transform.rotation = Quaternion.Euler(60, -30, 0);
 
         cam = new GameObject("Camera").AddComponent<Camera>();
         cam.tag = "MainCamera";
@@ -574,17 +572,17 @@ public class Game : MonoBehaviour
 
     static void Outdoor(Transform world)
     {
-        Color white = Color.white, pink = Fx.Blush;
+        Color white = Color.white, pink = Fx.Hex("#FF9EBB");
 
         // Sidewalk with curb, then the road with lane dashes.
-        Fx.Box(world, new(0, -0.06f, -2.4f), new(60, 0.12f, 3.6f), Fx.Hex("#CFC6B8"));
+        Fx.Box(world, new(0, -0.06f, -2.4f), new(60, 0.12f, 3.6f), Fx.Hex("#E3D8EC"));
         Fx.Box(world, new(0, -0.03f, -4.25f), new(60, 0.12f, 0.22f), white);
-        Fx.Box(world, new(0, -0.09f, -6.9f), new(60, 0.1f, 5f), Fx.Hex("#5A5560"));
+        Fx.Box(world, new(0, -0.09f, -6.9f), new(60, 0.1f, 5f), Fx.Hex("#BDB6CF"));
         for (float x = -28; x <= 28; x += 3) Fx.Box(world, new(x, -0.035f, -6.9f), new(1.4f, 0.02f, 0.18f), white);
 
-        Car(world, new(-9, 0, -5.7f), Fx.Lacquer);
-        Car(world, new(6.5f, 0, -8.1f), Fx.Champagne);
-        Car(world, new(17, 0, -5.7f), Fx.Wine);
+        Car(world, new(-9, 0, -5.7f), Fx.Hex("#FF9EBB"));
+        Car(world, new(6.5f, 0, -8.1f), Fx.Hex("#8ED9C4"));
+        Car(world, new(17, 0, -5.7f), Fx.Hex("#B9A2E8"));
 
         foreach (var x in new[] { 6f, 12f, 18f })
         {
@@ -597,8 +595,8 @@ public class Game : MonoBehaviour
         // Flower boxes under the front windows.
         foreach (var x in new[] { -4.4f, 4.4f })
         {
-            Fx.Box(world, new(x, 0.18f, -0.62f), new(4.2f, 0.36f, 0.5f), Fx.Lacquer);
-            var flowerColors = new[] { white, pink, Fx.Wine, Fx.Cream };
+            Fx.Box(world, new(x, 0.18f, -0.62f), new(4.2f, 0.36f, 0.5f), white);
+            var flowerColors = new[] { pink, Fx.Hex("#FFD166"), Fx.Hex("#B388FF"), Fx.Hex("#FF6FB5") };
             for (int k = 0; k < 12; k++)
                 Fx.Ball(world, new(x - 1.9f + k * 0.345f, 0.42f, -0.62f + (k % 2 - 0.5f) * 0.18f), 0.2f, flowerColors[k % flowerColors.Length]);
         }
@@ -607,14 +605,14 @@ public class Game : MonoBehaviour
         var patio = Fx.Box(world, new(0, -0.07f, 10.7f), new(16.8f, 0.1f, 22.6f), Color.white);
         patio.GetComponent<Renderer>().sharedMaterial = new Material(Fx.Mat(Color.white))
         {
-            mainTexture = Room.Tiles(Fx.Hex("#D9CFC0"), Fx.Hex("#C7BBA9")),
+            mainTexture = Room.Tiles(Fx.Hex("#F1E9F4"), Fx.Hex("#E2D6EA")),
             mainTextureScale = Vector2.one / 1.5f,
         };
-        var hedge = Fx.Hex("#5E9A63");
+        var hedge = Fx.Hex("#7BC67E");
         Fx.Box(world, new(-8.8f, 0.45f, 10.8f), new(0.8f, 0.9f, 22.8f), hedge);
         Fx.Box(world, new(8.8f, 0.45f, 10.8f), new(0.8f, 0.9f, 22.8f), hedge);
         Fx.Box(world, new(0, 0.45f, 22.4f), new(18.4f, 0.9f, 0.8f), hedge);
-        var blossoms = Theme.Christmas ? new[] { Fx.Hex("#FF4D5E"), Color.white, Color.white } : new[] { white, pink, white };
+        var blossoms = Theme.Christmas ? new[] { Fx.Hex("#FF4D5E"), Color.white, Color.white } : new[] { pink, Fx.Hex("#FFD166"), Color.white };
         int bloom = 0;
         for (float z = 0.4f; z < 22; z += 1.4f)
         {
@@ -663,7 +661,7 @@ public class Game : MonoBehaviour
 
     static void Pot(Transform parent, Vector3 p)
     {
-        Fx.Cyl(parent, p + new Vector3(0, 0.25f, 0), new(0.5f, 0.25f, 0.5f), Fx.Lacquer, true);
+        Fx.Cyl(parent, p + new Vector3(0, 0.25f, 0), new(0.5f, 0.25f, 0.5f), Fx.Hex("#FFC7D9"), true);
         Fx.Ball(parent, p + new Vector3(0, 0.75f, 0), 0.7f, Fx.Hex("#8FD694"));
     }
 
@@ -680,18 +678,18 @@ public class Game : MonoBehaviour
 
     static void Lamp(Transform parent, Vector3 p)
     {
-        Fx.Cyl(parent, p + new Vector3(0, 0.06f, 0), new(0.36f, 0.06f, 0.36f), Fx.Lacquer);
-        Fx.Cyl(parent, p + new Vector3(0, 1.4f, 0), new(0.1f, 1.4f, 0.1f), Fx.Lacquer);
+        Fx.Cyl(parent, p + new Vector3(0, 0.06f, 0), new(0.36f, 0.06f, 0.36f), Fx.Hex("#E9E1F0"));
+        Fx.Cyl(parent, p + new Vector3(0, 1.4f, 0), new(0.1f, 1.4f, 0.1f), Color.white);
         Fx.Ball(parent, p + new Vector3(0, 2.9f, 0), 0.42f, Fx.Hex("#FFF3B0"));
     }
 
     static void Bench(Transform parent, Vector3 p)
     {
-        var c = Fx.Hex("#7A5A43"); // teak
+        var c = Fx.Hex("#FFC7D9");
         Fx.Box(parent, p + new Vector3(0, 0.45f, 0), new(1.6f, 0.12f, 0.5f), c);
         Fx.Box(parent, p + new Vector3(0, 0.78f, 0.24f), new(1.6f, 0.45f, 0.1f), c);
-        Fx.Box(parent, p + new Vector3(-0.65f, 0.2f, 0), new(0.1f, 0.4f, 0.4f), Fx.Lacquer);
-        Fx.Box(parent, p + new Vector3(0.65f, 0.2f, 0), new(0.1f, 0.4f, 0.4f), Fx.Lacquer);
+        Fx.Box(parent, p + new Vector3(-0.65f, 0.2f, 0), new(0.1f, 0.4f, 0.4f), Color.white);
+        Fx.Box(parent, p + new Vector3(0.65f, 0.2f, 0), new(0.1f, 0.4f, 0.4f), Color.white);
     }
 
     static void Car(Transform parent, Vector3 p, Color body)

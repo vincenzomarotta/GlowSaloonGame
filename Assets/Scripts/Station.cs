@@ -42,7 +42,7 @@ public class Station : MonoBehaviour
         stars = new GameObject("Stars").transform;
         stars.SetParent(transform, false);
         for (int i = 0; i < level - 1; i++)
-            Fx.Ball(stars, new(1.35f * mirror, 0.08f, -1.3f + 0.3f * i), 0.17f, Fx.Gold);
+            Fx.Ball(stars, new(1.35f * mirror, 0.08f, -1.3f + 0.3f * i), 0.17f, Fx.Hex("#F5C542"));
         if (pop)
         {
             Fx.Burst(Pad + Vector3.up, 20, Fx.Hex("#F5C542"), Color.white);
@@ -85,16 +85,16 @@ public class Station : MonoBehaviour
         col.size = new(2.4f, 1f, 1.5f);
 
         // Color-coded rug marks the area of each service.
-        Fx.Box(t, new(0, 0.012f, 0.25f), new(3f, 0.02f, 3.4f), Color.Lerp(Game.Tint[(int)kind], Color.white, 0.62f));
+        Fx.Box(t, new(0, 0.012f, 0.25f), new(3f, 0.02f, 3.4f), Color.Lerp(Game.Tint[(int)kind], Color.white, 0.75f));
         s.BuildFurniture();
 
         // Worker pad.
-        Fx.Cyl(t, new(0, 0.03f, 1.4f), new(1.3f, 0.01f, 1.3f), Fx.Gold);
-        Fx.Cyl(t, new(0, 0.04f, 1.4f), new(1.05f, 0.01f, 1.05f), Fx.Cream);
+        Fx.Cyl(t, new(0, 0.03f, 1.4f), new(1.3f, 0.01f, 1.3f), Color.white);
+        Fx.Cyl(t, new(0, 0.04f, 1.4f), new(1.05f, 0.01f, 1.05f), Fx.Hex("#FFD3E2"));
 
         // Supply cart.
-        Fx.Cyl(t, new(-0.95f * m, 0.36f, 0.55f), new(0.08f, 0.36f, 0.08f), Fx.Gold);
-        Fx.Box(t, new(-0.95f * m, 0.72f, 0.55f), new(0.7f, 0.06f, 0.6f), Fx.Lacquer, solid: true);
+        Fx.Cyl(t, new(-0.95f * m, 0.36f, 0.55f), new(0.08f, 0.36f, 0.08f), Fx.Hex("#C9C9D6"));
+        Fx.Box(t, new(-0.95f * m, 0.72f, 0.55f), new(0.7f, 0.06f, 0.6f), Fx.Hex("#FF9EBB"), solid: true);
         s.trayRoot = new GameObject("Tray").transform;
         s.trayRoot.SetParent(t, false);
         s.trayRoot.localPosition = new(-0.95f * m, 0.75f, 0.55f);
@@ -121,7 +121,7 @@ public class Station : MonoBehaviour
     void BuildFurniture()
     {
         var t = transform;
-        Color white = Fx.Marble, pink = Fx.Blush, lilac = Fx.Velvet, gold = Fx.Gold, grey = Fx.Gold;
+        Color white = Color.white, pink = Fx.Hex("#FF8FB8"), lilac = Fx.Hex("#B9A2E8"), gold = Fx.Hex("#E8C46A"), grey = Fx.Hex("#C9C9D6");
         switch (kind)
         {
             case Kind.Nails:
@@ -140,15 +140,15 @@ public class Station : MonoBehaviour
                 Fx.Box(t, new(0, 1.5f, -1.6f), new(0.92f, 1.22f, 0.08f), Fx.Hex("#CFEFFF"));
                 break;
             case Kind.Spa:
-                Fx.Box(t, new(0, 0.3f, -0.85f), new(2f, 0.6f, 0.85f), Fx.Champagne);
-                Fx.Box(t, new(0, 0.62f, -0.85f), new(2f, 0.08f, 0.85f), Fx.Cream);
-                Fx.Box(t, new(0.6f, 0.7f, -0.85f), new(0.45f, 0.1f, 0.6f), Color.white);
+                Fx.Box(t, new(0, 0.3f, -0.85f), new(2f, 0.6f, 0.85f), white);
+                Fx.Box(t, new(0, 0.62f, -0.85f), new(2f, 0.08f, 0.85f), Fx.Hex("#A8E6CF"));
+                Fx.Box(t, new(0.6f, 0.7f, -0.85f), new(0.45f, 0.1f, 0.6f), white);
                 Fx.Cyl(t, new(-0.9f, 1.1f, -1.6f), new(0.3f, 0.02f, 0.3f), Fx.Hex("#FFE3A3"));
                 break;
             case Kind.Makeup:
-                Fx.Box(t, new(0, 0.32f, -0.95f), new(0.65f, 0.12f, 0.6f), Fx.Wine);
-                Fx.Box(t, new(0, 0.7f, -1.25f), new(0.65f, 0.7f, 0.12f), Fx.Wine);
-                Fx.Box(t, new(0, 1.5f, -1.65f), new(1.2f, 1.1f, 0.08f), gold);
+                Fx.Box(t, new(0, 0.32f, -0.95f), new(0.65f, 0.12f, 0.6f), Fx.Hex("#FFC7D9"));
+                Fx.Box(t, new(0, 0.7f, -1.25f), new(0.65f, 0.7f, 0.12f), Fx.Hex("#FFC7D9"));
+                Fx.Box(t, new(0, 1.5f, -1.65f), new(1.2f, 1.1f, 0.08f), white);
                 Fx.Box(t, new(0, 1.5f, -1.6f), new(1.0f, 0.9f, 0.08f), Fx.Hex("#CFEFFF"));
                 for (int i = 0; i < 4; i++)
                 {
@@ -162,7 +162,7 @@ public class Station : MonoBehaviour
 
     public void Hire(bool pop)
     {
-        staff = Fx.Person(Pad, Fx.Uniform, Fx.NaturalHair(), Fx.Skin());
+        staff = Fx.Person(Pad, Fx.Hex("#8ED9C4"), Fx.NaturalHair(), Fx.Skin());
         staff.transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(SeatPos - Pad, Vector3.up));
         Fx.Box(staff.model, new(0, 0.45f, 0.21f), new(0.36f, 0.45f, 0.1f), Color.white); // apron
         if (pop)

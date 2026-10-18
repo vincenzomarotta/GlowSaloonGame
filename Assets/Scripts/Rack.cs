@@ -24,16 +24,16 @@ public class Rack : MonoBehaviour
         col.center = new(0, 1, -0.05f);
         col.size = new(1.8f, 2, 0.6f);
 
-        Color wood = Fx.Hex("#4A3226"), tint = Game.Tint[(int)kind];
+        Color wood = Fx.Hex("#F3E1D0"), tint = Game.Tint[(int)kind];
         Fx.Box(t, new(0, 1, -0.25f), new(1.7f, 2, 0.1f), wood);
         Fx.Box(t, new(-0.85f, 1, 0), new(0.06f, 2, 0.5f), wood);
         Fx.Box(t, new(0.85f, 1, 0), new(0.06f, 2, 0.5f), wood);
         foreach (var y in new[] { 0.05f, 0.65f, 1.25f, 1.97f })
-            Fx.Box(t, new(0, y, 0), new(1.7f, 0.06f, 0.5f), Fx.Gold);
+            Fx.Box(t, new(0, y, 0), new(1.7f, 0.06f, 0.5f), Color.white);
         Fx.Box(t, new(0, 2.35f, -0.15f), new(1.5f, 0.45f, 0.1f), tint);
         Fx.Text(t, new(0, 2.35f, -0.04f), Game.ProductName[(int)kind], 0.04f, Color.white, Quaternion.identity);
 
-        Fx.Cyl(t, new(0, 0.01f, 1.3f), new(1.3f, 0.01f, 1.3f), Fx.Gold);
+        Fx.Cyl(t, new(0, 0.01f, 1.3f), new(1.3f, 0.01f, 1.3f), Color.white);
         Fx.Cyl(t, new(0, 0.02f, 1.3f), new(1.05f, 0.01f, 1.05f), tint);
         return r;
     }

@@ -27,9 +27,9 @@ public class UnlockZone : MonoBehaviour
         var t = z.transform;
         t.position = pos;
 
-        Fx.Box(t, new(0, 0.025f, 0), new(Size + 0.14f, 0.03f, Size + 0.14f), Fx.Gold);
-        Fx.Box(t, new(0, 0.04f, 0), new(Size, 0.03f, Size), Fx.Uniform);
-        z.fill = Fx.Box(t, Vector3.zero, Vector3.one, Fx.Hex("#B8963A"), round: false).transform;
+        Fx.Box(t, new(0, 0.025f, 0), new(Size + 0.14f, 0.03f, Size + 0.14f), Color.white);
+        Fx.Box(t, new(0, 0.04f, 0), new(Size, 0.03f, Size), Fx.Hex("#9C88D9"));
+        z.fill = Fx.Box(t, Vector3.zero, Vector3.one, Fx.Hex("#7BE0AD"), round: false).transform;
 
         var flat = Quaternion.Euler(90, 0, 0);
         // Long labels go on two lines so they stay big and inside the tile.

@@ -11,10 +11,10 @@ public class Hud : MonoBehaviour
     public static Hud I;
     public Vector2 Stick { get; private set; }
 
-    static readonly Color Ink = Fx.Hex("#2B2730");
-    static readonly Color Accent = Fx.Hex("#7A2236");
-    static readonly Color Lilac = Fx.Hex("#B8963A"); // gold buttons and icons
-    static readonly Color Soft = Fx.Hex("#F6EFE3");
+    static readonly Color Ink = Fx.Hex("#4A3F55");
+    static readonly Color Accent = Fx.Hex("#FF4F8B");
+    static readonly Color Lilac = Fx.Hex("#9C88D9");
+    static readonly Color Soft = Fx.Hex("#EFE6FA");
     static readonly Color Disabled = Fx.Hex("#CFC6DA");
     static readonly Color Mint = Fx.Hex("#5FD3A0");
 
@@ -61,12 +61,12 @@ public class Hud : MonoBehaviour
         return round = Sprite.Create(tex, new Rect(0, 0, n, n), new(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(31, 31, 31, 31));
     }
 
-    // Soft warm edge darkening for a more polished look.
+    // Soft purple edge darkening for a more polished look.
     static Sprite Vignette()
     {
         const int n = 128;
         var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-        var tint = Fx.Hex("#3A2A22");
+        var tint = Fx.Hex("#6B4C8A");
         for (int y = 0; y < n; y++)
             for (int x = 0; x < n; x++)
             {

@@ -16,20 +16,20 @@ public class Register : MonoBehaviour
         var t = r.transform;
         t.position = pos;
 
-        Fx.Box(t, new(0, 0.45f, 0), new(1.5f, 0.9f, 0.7f), Fx.Marble, solid: true);
-        Fx.Box(t, new(0, 0.93f, 0), new(1.6f, 0.07f, 0.8f), Fx.Gold);
-        r.machine = Fx.Box(t, new(0.3f, 1.12f, 0), new(0.55f, 0.3f, 0.42f), Fx.Lacquer).transform;
+        Fx.Box(t, new(0, 0.45f, 0), new(1.5f, 0.9f, 0.7f), Color.white, solid: true);
+        Fx.Box(t, new(0, 0.93f, 0), new(1.6f, 0.07f, 0.8f), Fx.Hex("#FF8FB8"));
+        r.machine = Fx.Box(t, new(0.3f, 1.12f, 0), new(0.55f, 0.3f, 0.42f), Fx.Hex("#B9A2E8")).transform;
         Fx.Box(r.machine, new(0, 0.2f, -0.1f), new(0.42f, 0.16f, 0.06f), Fx.Hex("#A8E6CF"));
         Fx.Box(t, new(-0.35f, 1.0f, 0.05f), new(0.42f, 0.06f, 0.26f), Fx.Hex("#5BC27A"));
 
-        Fx.Cyl(t, new(0, 0.01f, 1.2f), new(1.3f, 0.01f, 1.3f), Fx.Gold);
-        Fx.Cyl(t, new(0, 0.02f, 1.2f), new(1.05f, 0.01f, 1.05f), Fx.Cream);
+        Fx.Cyl(t, new(0, 0.01f, 1.2f), new(1.3f, 0.01f, 1.3f), Color.white);
+        Fx.Cyl(t, new(0, 0.02f, 1.2f), new(1.05f, 0.01f, 1.05f), Fx.Hex("#FFD166"));
         return r;
     }
 
     public void Hire(bool pop)
     {
-        cashier = Fx.Person(transform.TransformPoint(0, 0, -0.65f), Fx.Uniform, Fx.NaturalHair(), Fx.Skin());
+        cashier = Fx.Person(transform.TransformPoint(0, 0, -0.65f), Fx.Hex("#FFC48C"), Fx.NaturalHair(), Fx.Skin());
         Fx.Box(cashier.model, new(0, 0.45f, 0.21f), new(0.36f, 0.45f, 0.1f), Color.white); // apron
         if (pop)
         {

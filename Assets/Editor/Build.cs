@@ -13,7 +13,7 @@ public static class Build
     const string ScenePath = "Assets/Scenes/Main.unity";
     const string ApkPath = "Builds/NennisSaloon.apk";
     // Bump for every release: it is the Android versionCode, the shown version and the GitHub release tag "v<Version>".
-    public const int Version = 2;
+    public const int Version = 3;
 
     [MenuItem("Glow Salon/Build APK")]
     public static void Apk() => Apk(BuildOptions.None);
@@ -56,11 +56,7 @@ public static class Build
             mat = new Material(Shader.Find("Standard")) { enableInstancing = true };
             AssetDatabase.CreateAsset(mat, matPath);
         }
-        mat.shader = Shader.Find("Standard");
-        // Matte by default; reflections stay on so gold, marble and lacquer can shine (finishes in Fx.Mat).
-        mat.SetFloat("_Glossiness", 0.12f);
-        mat.SetFloat("_GlossyReflections", 1);
-        mat.DisableKeyword("_GLOSSYREFLECTIONS_OFF");
+        mat.SetFloat("_Glossiness", 0.3f); // soft satin sheen
         EditorUtility.SetDirty(mat);
 
         if (!File.Exists(ScenePath))
