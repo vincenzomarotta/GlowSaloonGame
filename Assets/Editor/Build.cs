@@ -12,6 +12,8 @@ public static class Build
 {
     const string ScenePath = "Assets/Scenes/Main.unity";
     const string ApkPath = "Builds/NennisSaloon.apk";
+    // Bump for every release: it is the Android versionCode, the shown version and the GitHub release tag "v<Version>".
+    public const int Version = 2;
 
     [MenuItem("Glow Salon/Build APK")]
     public static void Apk() => Apk(BuildOptions.None);
@@ -81,7 +83,9 @@ public static class Build
         var android = NamedBuildTarget.Android;
         PlayerSettings.companyName = "Vince";
         PlayerSettings.productName = Game.SalonName;
-        PlayerSettings.bundleVersion = "1.0";
+        PlayerSettings.bundleVersion = Version.ToString();
+        PlayerSettings.Android.bundleVersionCode = Version;
+        PlayerSettings.Android.forceInternetPermission = true; // Updater
         PlayerSettings.SetApplicationIdentifier(android, "com.vince.nennisaloon");
         PlayerSettings.SetScriptingBackend(android, ScriptingImplementation.IL2CPP);
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
@@ -170,5 +174,21 @@ public static class Build
         float a = src.a + dst.a * (1 - src.a);
         var rgb = ((Vector4)src * src.a + (Vector4)dst * dst.a * (1 - src.a)) / a;
         dst = new Color(rgb.x, rgb.y, rgb.z, a);
+    }
+
+    // Adds the in-game updater's install permission and APK provider to the generated manifest.
+    class UpdaterManifest : IPostGenerateGradleAndroidProject
+    {
+        public int callbackOrder => 0;
+
+        public void OnPostGenerateGradleAndroidProject(string path)
+        {
+            var file = Path.Combine(path, "src/main/AndroidManifest.xml");
+            var xml = File.ReadAllText(file);
+            if (xml.Contains("UpdateProvider")) return;
+            xml = xml.Replace("  <application", "  <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n  <application")
+                .Replace("</application>", "  <provider android:name=\"com.vince.updater.UpdateProvider\" android:authorities=\"${applicationId}.update\" android:exported=\"false\" android:grantUriPermissions=\"true\" />\n  </application>");
+            File.WriteAllText(file, xml);
+        }
     }
 }

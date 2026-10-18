@@ -301,12 +301,14 @@ public class Hud : MonoBehaviour
 
     void BuildSettings(RectTransform dim)
     {
-        var card = Card(dim, new(840, 1020), "Impostazioni");
-        Toggle(card, "Musica", 230, () => Settings.Music, v => Settings.Music = v);
-        Toggle(card, "Suoni", 90, () => Settings.Sounds, v => Settings.Sounds = v);
-        Toggle(card, "Vibrazione", -50, () => Settings.Vibration, v => { Settings.Vibration = v; Haptics.Tick(30, 120); });
-        Img(card, Soft, new(700, 6), new(0, -150));
-        var love = Txt(card, 60, Accent, new(0, -260), "Ti amo nennina,\nbuon anniversario <3");
+        var card = Card(dim, new(840, 1180), "Impostazioni");
+        Toggle(card, "Musica", 310, () => Settings.Music, v => Settings.Music = v);
+        Toggle(card, "Suoni", 170, () => Settings.Sounds, v => Settings.Sounds = v);
+        Toggle(card, "Vibrazione", 30, () => Settings.Vibration, v => { Settings.Vibration = v; Haptics.Tick(30, 120); });
+        Button(card, "Cerca aggiornamenti", Soft, new(600, 100), new(0, -100), Updater.Check, 46, Ink);
+        Txt(card, 36, Lilac, new(0, -180), "Versione " + Updater.Version);
+        Img(card, Soft, new(700, 6), new(0, -240));
+        var love = Txt(card, 60, Accent, new(0, -350), "Ti amo nennina,\nbuon anniversario <3");
         love.lineSpacing = 1.1f;
         CloseButton(card);
     }
