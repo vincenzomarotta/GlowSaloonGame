@@ -25,13 +25,17 @@ public static class Missions
     }
 
     static List<Mission> list;
+    static DateTime listDay;
+    static bool dirty;
     static string Today => DateTime.Today.ToString("yyyy-MM-dd");
 
+    // Cached for the day: this runs for every banked bill, and PlayerPrefs calls are slow on Android.
     public static List<Mission> All
     {
         get
         {
-            if (list != null && PlayerPrefs.GetString("v3.mday") == Today) return list;
+            if (list != null && listDay == DateTime.Today) return list;
+            listDay = DateTime.Today;
             list = PlayerPrefs.GetString("v3.mday") == Today ? Parse(PlayerPrefs.GetString("v3.missions", "")) : null;
             if (list == null || list.Count != 3) Generate();
             return list;
@@ -102,9 +106,14 @@ public static class Missions
         Hud.I.RefreshBadges();
     }
 
-    static void Save()
+    static void Save() => dirty = true;
+
+    // Writes pending progress; called by Game.Save (every couple of seconds while anything changed, and on pause/quit).
+    public static void Flush()
     {
-        PlayerPrefs.SetString("v3.mday", Today);
+        if (!dirty || list == null) return;
+        dirty = false;
+        PlayerPrefs.SetString("v3.mday", listDay.ToString("yyyy-MM-dd"));
         PlayerPrefs.SetString("v3.missions", string.Join("|", list.Select(m =>
             $"{(int)m.type}:{(int)m.kind}:{m.goal}:{m.progress}:{m.reward}:{(m.claimed ? 1 : 0)}")));
     }

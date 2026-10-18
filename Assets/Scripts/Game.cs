@@ -407,6 +407,7 @@ public class Game : MonoBehaviour
         PlayerPrefs.SetString("v2.paid", Pack(paid));
         PlayerPrefs.SetString("v2.markups", Pack(markups));
         PlayerPrefs.SetString("v2.levels", Pack(levels));
+        Missions.Flush();
         PlayerPrefs.Save();
         dirty = false;
         saveTimer = 0;

@@ -296,17 +296,30 @@ public static class Fx
         done?.Invoke();
     }
 
-    public static void Pop(Transform t, float dur = 0.35f) => Game.I.StartCoroutine(PopRoutine(t, t.localScale, dur));
+    static readonly Dictionary<Transform, (Vector3 target, int id)> pops = new();
 
-    static IEnumerator PopRoutine(Transform t, Vector3 target, float dur)
+    // A newer Pop on the same transform restarts the old one with the old target scale: reading localScale
+    // mid-pop (it starts at 0) made things shrink for good, e.g. two upgrades with the paused shop open.
+    public static void Pop(Transform t, float dur = 0.35f)
+    {
+        var target = pops.TryGetValue(t, out var running) ? running.target : t.localScale;
+        int id = ++flightId;
+        pops[t] = (target, id);
+        Game.I.StartCoroutine(PopRoutine(t, target, dur, id));
+    }
+
+    static IEnumerator PopRoutine(Transform t, Vector3 target, float dur, int id)
     {
         for (float k = 0; k < 1; k += Time.deltaTime / dur)
         {
-            if (!t) yield break;
+            if (!t) { pops.Remove(t); yield break; }
+            if (!pops.TryGetValue(t, out var cur) || cur.id != id) yield break;
             float x = k - 1; // easeOutBack
             t.localScale = target * (1 + 2.70158f * x * x * x + 1.70158f * x * x);
             yield return null;
         }
+        if (!pops.TryGetValue(t, out var last) || last.id != id) yield break;
+        pops.Remove(t);
         if (t) t.localScale = target;
     }
 
