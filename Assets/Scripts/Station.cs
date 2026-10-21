@@ -9,10 +9,11 @@ public class Station : MonoBehaviour
     public const int TrayMax = 10;
 
     public const int MaxLevel = 5;
+    public const int MaxTraining = 3;
 
     public Kind kind;
     public string id;
-    public int level = 1;
+    public int level = 1, training = 1;
     public Customer customer;
     public readonly List<Item> tray = new();
 
@@ -21,7 +22,7 @@ public class Station : MonoBehaviour
     Transform trayRoot, bar, barFill, alert;
     float progress, dropTimer, sparkleTimer;
     float mirror = 1; // -1 swaps the pile/cart side with the customers' entry side
-    Transform stars;
+    Transform stars, badges;
 
     public Vector3 Pad => transform.TransformPoint(0, 0, 1.4f);
     public bool HasStaff => staff;
@@ -31,18 +32,46 @@ public class Station : MonoBehaviour
 
     // Each level above 1: +30% price and +20% speed. The salon multiplier scales every payment.
     public int ServicePrice => Mathf.RoundToInt(Game.Price[(int)kind] * (1 + 0.3f * (level - 1))) * Game.I.Multiplier;
-    float ServiceSeconds => Game.ServiceTime[(int)kind] / (1 + 0.2f * (level - 1));
+    // A trained worker is 25% faster per training level, and the coffee machine adds 15%.
+    float ServiceSeconds(bool byStaff) => Game.ServiceTime[(int)kind] / (1 + 0.2f * (level - 1))
+        / (byStaff ? (1 + 0.25f * (training - 1)) * (Game.I.Has("coffee") ? 1.15f : 1) : 1);
     public int UpgradeCost => Game.UpgradeBase[(int)kind] << (level - 1);
+    public int TrainCost => Game.UpgradeBase[(int)kind] * 2 << (training - 1);
 
-    // Gold studs on the rug show the level.
+    // Gold studs on the rug count the level, and each level dresses the spot up:
+    // gold rug border (2), flowers (3), a lamp (4), a golden rug (5).
     public void SetLevel(int lv, bool pop)
     {
         level = lv;
         if (stars) Destroy(stars.gameObject);
         stars = new GameObject("Stars").transform;
         stars.SetParent(transform, false);
+        var gold = Fx.Hex("#F5C542");
         for (int i = 0; i < level - 1; i++)
-            Fx.Ball(stars, new(1.35f * mirror, 0.08f, -1.3f + 0.3f * i), 0.17f, Fx.Hex("#F5C542"));
+            Fx.Ball(stars, new(1.35f * mirror, 0.08f, -1.3f + 0.3f * i), 0.17f, gold);
+        if (level >= 2)
+        {
+            foreach (var x in new[] { -1.45f, 1.45f }) Fx.Box(stars, new(x, 0.03f, 0.25f), new(0.1f, 0.012f, 3.4f), gold);
+            foreach (var z in new[] { -1.4f, 1.9f }) Fx.Box(stars, new(0, 0.03f, z), new(3f, 0.012f, 0.1f), gold);
+        }
+        if (level >= 3)
+        {
+            var vase = new Vector3(1.22f * mirror, 0, -1.62f);
+            Fx.Cyl(stars, vase + new Vector3(0, 0.22f, 0), new(0.26f, 0.22f, 0.26f), Color.white);
+            var petals = new[] { Fx.Hex("#FF6FB5"), Fx.Hex("#FFD166"), Fx.Hex("#B388FF") };
+            for (int i = 0; i < 3; i++)
+                Fx.Ball(stars, vase + new Vector3((i - 1) * 0.1f, 0.55f + (i % 2) * 0.08f, 0), 0.16f, petals[i]);
+            Fx.Ball(stars, vase + new Vector3(0, 0.46f, 0), new Vector3(0.3f, 0.1f, 0.3f), Fx.Hex("#7BC67E"));
+        }
+        if (level >= 4)
+        {
+            var lamp = new Vector3(-1.22f * mirror, 0, -1.62f);
+            Fx.Cyl(stars, lamp + new Vector3(0, 0.03f, 0), new(0.3f, 0.03f, 0.3f), gold);
+            Fx.Cyl(stars, lamp + new Vector3(0, 0.6f, 0), new(0.05f, 0.6f, 0.05f), gold);
+            Fx.Ball(stars, lamp + new Vector3(0, 1.28f, 0), new Vector3(0.36f, 0.3f, 0.36f), Fx.Hex("#FFF3B0"));
+        }
+        if (level >= 5)
+            Fx.Box(stars, new(0, 0.026f, 0.25f), new(2.7f, 0.01f, 3.1f), Color.Lerp(Color.Lerp(Game.Tint[(int)kind], Color.white, 0.6f), gold, 0.45f));
         if (pop)
         {
             Fx.Burst(Pad + Vector3.up, 20, Fx.Hex("#F5C542"), Color.white);
@@ -52,11 +81,11 @@ public class Station : MonoBehaviour
     public int PileValue => pile.Value;
     public MoneyPile Pile => pile;
 
-    // Hair faces the mirror, massage lies on the bed, the others sit facing the worker.
-    bool Lies => kind == Kind.Spa;
+    // Hair faces the mirror, massage and lashes lie on the bed, the others sit facing the worker.
+    bool Lies => kind is Kind.Spa or Kind.Lashes;
     Vector3 SeatLocal => Lies ? new Vector3(-0.75f, 0, -0.85f) : new Vector3(0, 0, -0.95f);
     public Vector3 SeatPos => transform.TransformPoint(SeatLocal);
-    public Quaternion SeatRot => transform.rotation * Quaternion.Euler(0, kind switch { Kind.Hair => 180, Kind.Spa => 90, _ => 0 }, 0);
+    public Quaternion SeatRot => transform.rotation * Quaternion.Euler(0, kind == Kind.Hair ? 180 : Lies ? 90 : 0, 0);
     public float SeatY => Lies ? 0.85f : 0.2f;
     public Quaternion SeatPose => Lies ? Quaternion.Euler(90, 0, 0) : Quaternion.identity;
 
@@ -157,6 +186,33 @@ public class Station : MonoBehaviour
                     Fx.Ball(t, new(0.62f, y, -1.58f), 0.12f, Fx.Hex("#FFF3B0"));
                 }
                 break;
+            case Kind.Pedicure: // armchair with a foot bath in front
+                var sky = Fx.Hex("#A8DDF7");
+                Fx.Box(t, new(0, 0.36f, -0.95f), new(0.8f, 0.16f, 0.65f), sky);
+                Fx.Box(t, new(0, 0.85f, -1.28f), new(0.8f, 0.85f, 0.14f), sky);
+                Fx.Box(t, new(-0.45f, 0.55f, -0.95f), new(0.1f, 0.22f, 0.6f), white);
+                Fx.Box(t, new(0.45f, 0.55f, -0.95f), new(0.1f, 0.22f, 0.6f), white);
+                Fx.Cyl(t, new(0, 0.11f, -0.25f), new(0.56f, 0.11f, 0.46f), white);
+                Fx.Cyl(t, new(0, 0.22f, -0.25f), new(0.46f, 0.01f, 0.36f), Fx.Hex("#7FD3F7"));
+                break;
+            case Kind.Lashes: // bed with a pillow and a ring lamp over the head
+                Fx.Box(t, new(0, 0.3f, -0.85f), new(2f, 0.6f, 0.8f), white);
+                Fx.Box(t, new(0, 0.62f, -0.85f), new(2f, 0.08f, 0.8f), Fx.Hex("#D9C8F5"));
+                Fx.Box(t, new(0.6f, 0.7f, -0.85f), new(0.45f, 0.1f, 0.6f), white);
+                Fx.Cyl(t, new(1.12f, 0.75f, -1.2f), new(0.05f, 0.75f, 0.05f), grey);
+                Fx.Cyl(t, new(1.12f, 1.55f, -1.1f), new(0.5f, 0.03f, 0.5f), white).transform.localRotation = Quaternion.Euler(60, 0, 0);
+                Fx.Cyl(t, new(1.12f, 1.55f, -1.08f), new(0.36f, 0.035f, 0.36f), Fx.Hex("#FFF3B0")).transform.localRotation = Quaternion.Euler(60, 0, 0);
+                break;
+            case Kind.Brows: // chair, round mirror and a cup of pencils
+                var latte = Fx.Hex("#EBD5C1");
+                Fx.Box(t, new(0, 0.32f, -0.95f), new(0.65f, 0.12f, 0.6f), latte);
+                Fx.Box(t, new(0, 0.75f, -1.25f), new(0.65f, 0.8f, 0.12f), latte);
+                Fx.Cyl(t, new(0, 1.55f, -1.66f), new(1f, 0.04f, 1f), gold).transform.localRotation = Quaternion.Euler(90, 0, 0);
+                Fx.Cyl(t, new(0, 1.55f, -1.62f), new(0.84f, 0.04f, 0.84f), Fx.Hex("#CFEFFF")).transform.localRotation = Quaternion.Euler(90, 0, 0);
+                Fx.Box(t, new(0.7f, 0.4f, -1.2f), new(0.4f, 0.8f, 0.4f), white);
+                Fx.Cyl(t, new(0.7f, 0.9f, -1.2f), new(0.16f, 0.1f, 0.16f), pink);
+                for (int i = 0; i < 3; i++) Fx.Cyl(t, new(0.66f + i * 0.04f, 1.05f, -1.2f), new(0.03f, 0.12f, 0.03f), Fx.Hex("#8A5A3C"));
+                break;
         }
     }
 
@@ -165,11 +221,24 @@ public class Station : MonoBehaviour
         staff = Fx.Person(Pad, Fx.Hex("#8ED9C4"), Fx.NaturalHair(), Fx.Skin());
         staff.transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(SeatPos - Pad, Vector3.up));
         Fx.Box(staff.model, new(0, 0.45f, 0.21f), new(0.36f, 0.45f, 0.1f), Color.white); // apron
+        SetTraining(training, false);
         if (pop)
         {
             Fx.Pop(staff.transform);
             Fx.Burst(Pad + Vector3.up, 16, Fx.Confetti);
         }
+    }
+
+    // One gold pin on the apron per training level above 1.
+    public void SetTraining(int t, bool pop)
+    {
+        training = t;
+        if (!staff) return;
+        if (badges) Destroy(badges.gameObject);
+        badges = new GameObject("Badges").transform;
+        badges.SetParent(staff.model, false);
+        for (int i = 0; i < training - 1; i++) Fx.Ball(badges, new(-0.07f + 0.14f * i, 0.6f, 0.27f), 0.1f, Fx.Hex("#F5C542"));
+        if (pop) Fx.Burst(Pad + Vector3.up * 1.2f, 16, Fx.Hex("#F5C542"), Color.white);
     }
 
     void Update()
@@ -195,7 +264,7 @@ public class Station : MonoBehaviour
         {
             if (staffMay) staff.Work();
             else Game.I.player.walker.Work();
-            progress += Time.deltaTime / ServiceSeconds;
+            progress += Time.deltaTime / ServiceSeconds(staffMay);
             sparkleTimer -= Time.deltaTime;
             if (sparkleTimer <= 0)
             {
@@ -232,15 +301,16 @@ public class Station : MonoBehaviour
         tray.RemoveAt(tray.Count - 1);
         Fx.ShrinkAndDestroy(used.transform);
 
-        // A VIP pays everything at the end of her last service.
-        int price = !customer.Vip ? ServicePrice : customer.LastService ? Game.I.VipReward(customer.Plan) : 0;
+        // A VIP (or bride, or star) pays everything at the end of her last service.
+        int price = !customer.Vip ? ServicePrice : customer.LastService ? Game.I.VipReward(customer) : 0;
         Missions.Served(kind, customer.Vip && customer.LastService);
+        if (!customer.Vip) Game.I.Paid(price);
         if (price > 0)
         {
             // Stations within reach of a staffed register are paid straight into it; the others drop the money on
-            // the floor. Reach grows with every hired cashier: 8 m, 12 m, then 16 m (the whole salon).
+            // the floor. Reach grows with every hired cashier: 8 m, 12 m, then the whole salon.
             var tills = Game.I.registers.Where(r => r.HasCashier).ToList();
-            float reach = 4 + 4 * tills.Count;
+            float reach = tills.Count >= 3 ? float.MaxValue : 4 + 4 * tills.Count;
             var till = tills.OrderBy(r => (r.Pad - Pad).sqrMagnitude).FirstOrDefault();
             if (till && Vector3.Distance(till.Pad, Pad) <= reach) till.Receive(price, customer.transform.position + Vector3.up);
             else pile.Add(price, customer.transform.position + Vector3.up);

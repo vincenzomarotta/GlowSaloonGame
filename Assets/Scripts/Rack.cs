@@ -76,7 +76,8 @@ public class Rack : MonoBehaviour
         if (giveTimer > 0 || stock.Count == 0) return;
         foreach (var c in Game.I.carriers)
         {
-            if (c.Full || !Fx.Near(c.transform.position, Pad, 1.1f)) continue;
+            // 0.9 m: shelves stand 1.95 m apart, so no spot between two pads takes from both.
+            if (c.Full || !Fx.Near(c.transform.position, Pad, 0.9f)) continue;
             var item = stock[^1];
             stock.RemoveAt(stock.Count - 1);
             c.Add(item);

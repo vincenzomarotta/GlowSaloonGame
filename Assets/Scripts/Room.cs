@@ -72,8 +72,11 @@ public class Room : MonoBehaviour
 
         if (Theme.Christmas) ChristmasTree(new(1.95f, 0, 0.9f)); // right of the door (always in view), replaces the corner plant
         else Plant(new(xMax - 0.6f, 0, 0.8f));
-        Plant(new(XMin + 0.6f, 0, zMax - 0.6f));
-        Plant(new(xMax - 0.6f, 0, zMax - 0.6f));
+        if (zMax < 25) // the new wing puts shelves in the back corners
+        {
+            Plant(new(XMin + 0.6f, 0, zMax - 0.6f));
+            Plant(new(xMax - 0.6f, 0, zMax - 0.6f));
+        }
         BuildDecor(cx);
 
         if (!animate) return;

@@ -20,8 +20,8 @@ public static class Theme
     public static string Title => Titles[Prestige % Titles.Length];
     public static string NextTitle => Titles[(Prestige + 1) % Titles.Length];
 
-    public static readonly string[] Service = { "Manicure", "Piega", "Massaggio", "Trucco" };
-    public static readonly string[] Product = { "Smalti", "Shampoo", "Asciugamani", "Rossetti" };
-    public static readonly string[] Seat = { "Manicure", "Parrucchiere", "Massaggio", "Trucco" }; // unlock tile labels
-    public static readonly string[] Staff = { "Estetista", "Parrucchiera", "Massaggiatrice", "Truccatrice" };
+    public static readonly string[] Service = { "Manicure", "Piega", "Massaggio", "Trucco", "Pedicure", "Ciglia", "Sopracciglia" };
+    public static readonly string[] Product = { "Smalti", "Shampoo", "Asciugamani", "Rossetti", "Creme", "Mascara", "Matite" };
+    public static readonly string[] Seat = { "Manicure", "Parrucchiere", "Massaggio", "Trucco", "Pedicure", "Ciglia", "Sopracciglia" }; // unlock tile labels
+    public static readonly string[] Staff = { "Estetista", "Parrucchiera", "Massaggiatrice", "Truccatrice", "Pedicurista", "Lash maker", "Brow artist" };
 }

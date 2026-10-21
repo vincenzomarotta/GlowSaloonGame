@@ -13,6 +13,20 @@ public static class Fx
 
     public static Font Font => font ??= Resources.Load<Font>("Fredoka");
 
+    // Font material that people standing on it hide (the default one draws on top of everything): for floor text.
+    // Resources/FloorText.shader; it follows the dynamic font atlas when that gets rebuilt.
+    static Material floorFont;
+    public static Material FloorFont
+    {
+        get
+        {
+            if (floorFont) return floorFont;
+            floorFont = new Material(Resources.Load<Shader>("FloorText")) { mainTexture = Font.material.mainTexture };
+            UnityEngine.Font.textureRebuilt += f => { if (f == font && floorFont) floorFont.mainTexture = f.material.mainTexture; };
+            return floorFont;
+        }
+    }
+
     public static Color Hex(string hex) => ColorUtility.TryParseHtmlString(hex, out var c) ? c : Color.magenta;
 
     public static Material Mat(Color c)
@@ -232,6 +246,21 @@ public static class Fx
                 Cyl(t, new(0, 0.08f, 0), new(0.12f, 0.08f, 0.12f), Hex("#E8B931"));
                 Cyl(t, new(0, 0.22f, 0), new(0.09f, 0.07f, 0.09f), Hex("#D7263D"));
                 item.height = 0.3f;
+                break;
+            case Kind.Pedicure: // foot cream jar
+                Cyl(t, new(0, 0.07f, 0), new(0.26f, 0.07f, 0.26f), Color.white);
+                Cyl(t, new(0, 0.165f, 0), new(0.27f, 0.03f, 0.27f), Hex("#4FB3E8"));
+                item.height = 0.2f;
+                break;
+            case Kind.Lashes: // mascara
+                Cyl(t, new(0, 0.12f, 0), new(0.1f, 0.12f, 0.1f), Hex("#7E57C2"));
+                Cyl(t, new(0, 0.3f, 0), new(0.08f, 0.06f, 0.08f), Hex("#2B2B2B"));
+                item.height = 0.36f;
+                break;
+            case Kind.Brows: // brow pencil
+                Cyl(t, new(0, 0.14f, 0), new(0.08f, 0.14f, 0.08f), Hex("#C99A6B"));
+                Cyl(t, new(0, 0.3f, 0), new(0.045f, 0.03f, 0.045f), Hex("#4A3428"));
+                item.height = 0.33f;
                 break;
         }
         return item;

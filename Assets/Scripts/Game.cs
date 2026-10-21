@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
-public enum Kind { Nails, Hair, Spa, Makeup }
+public enum Kind { Nails, Hair, Spa, Makeup, Pedicure, Lashes, Brows }
 
 // Bootstraps the whole salon at runtime (no scene content needed): world, unlock tree, customers, save.
 public class Game : MonoBehaviour
@@ -17,7 +17,7 @@ public class Game : MonoBehaviour
     // Each new salon (prestige) gets a name, a lawn color and one more x of income.
     static readonly string[] Lawns = { "#A9DFC0", "#F3E3B5", "#C9D7F2", "#F7C9D9" };
     public static string[] ServiceName => Theme.Service;
-    public static readonly int[] UpgradeBase = { 300, 600, 1000, 1400 };
+    public static readonly int[] UpgradeBase = { 300, 600, 1000, 1400, 1900, 2500, 3200 };
 
     public static Game I;
     public static readonly Quaternion CamRot = Quaternion.Euler(55, 0, 0);
@@ -25,9 +25,12 @@ public class Game : MonoBehaviour
 
     // Per-kind tuning, indexed by (int)Kind.
     public static string[] ProductName => Theme.Product;
-    public static readonly int[] Price = { 6, 14, 22, 32 };
-    public static readonly float[] ServiceTime = { 1.6f, 2.2f, 2.8f, 2.4f };
-    public static readonly Color[] Tint = { Fx.Hex("#FF4F8B"), Fx.Hex("#B388FF"), Fx.Hex("#4CC99A"), Fx.Hex("#E8A33D") };
+    public static readonly int[] Price = { 6, 14, 22, 32, 42, 55, 70 };
+    public static readonly float[] ServiceTime = { 1.6f, 2.2f, 2.8f, 2.4f, 2.6f, 3.0f, 2.6f };
+    public static readonly Color[] Tint =
+    {
+        Fx.Hex("#FF4F8B"), Fx.Hex("#B388FF"), Fx.Hex("#4CC99A"), Fx.Hex("#E8A33D"), Fx.Hex("#4FB3E8"), Fx.Hex("#7E57C2"), Fx.Hex("#B5835A"),
+    };
 
     // Test aid: launch with -autoplay and the player walks to whatever the guide arrow points at.
     public static readonly bool Autoplay = Environment.GetCommandLineArgs().Contains("-autoplay");
@@ -36,8 +39,16 @@ public class Game : MonoBehaviour
     const float Markup = 0.25f;     // picking one makes every other offered tile 25% (of base) pricier...
     const int MaxMarkups = 4;       // ...up to double its base price
 
-    static readonly float[] RowZ = { 4.5f, 8.1f, 11.7f, 15.3f };
-    static readonly float[] RackX = { -1.5f, 1.5f, -4.5f, 4.5f };
+    static readonly float[] RowZ = { 4.5f, 8.1f, 11.7f, 15.3f, 18.9f, 22.5f, 26.1f };
+    static readonly float[] RackX = { -1.95f, 1.95f, -3.9f, 3.9f, -5.85f, 5.85f, 0 };
+    // Seat i of each service: wall side (-1 left, 1 right) and row.
+    static readonly (int side, int row)[][] Seats =
+    {
+        new[] { (-1, 0), (-1, 1) }, new[] { (1, 0), (1, 1) }, // Nails, Hair
+        new[] { (-1, 2), (-1, 3) }, new[] { (1, 2), (1, 3) }, // Spa, Makeup
+        new[] { (-1, 4), (-1, 5) }, new[] { (1, 4), (1, 5) }, // Pedicure, Lashes
+        new[] { (-1, 6), (1, 6) },                             // Brows: the last row, one per side
+    };
     static readonly float[] RegisterX = { -2.7f, -4.4f, -6.1f }; // front-left corner, next to the entrance
 
     public Player player;
@@ -53,11 +64,14 @@ public class Game : MonoBehaviour
     public bool Impatience => bought.Count >= 6;                       // not during the tutorial
     public bool VipAvailable => stations.Select(s => s.kind).Distinct().Count() >= 2 && bought.Count >= 8;
     public Customer vip;
-    float vipTimer = 60;
+    public Pet pet;
+    float vipTimer = 60, groupTimer = 100, rushTimer = 200, rushLeft;
+    int rushEarned;
+    bool rushLost;
 
     class Step
     {
-        public string id, label;
+        public string id, label, desc; // desc: what it does, written on the tile
         public int baseCost;
         public Func<Vector3> pos; // null: shown in a free aisle slot
         public Action<bool> build;
@@ -109,19 +123,23 @@ public class Game : MonoBehaviour
 
     // ---------- Layout ----------
 
-    static float Side(Kind k) => k is Kind.Nails or Kind.Spa ? -1 : 1;
-    static float Row(Kind k, int i) => RowZ[(k is Kind.Spa or Kind.Makeup ? 2 : 0) + i];
-    static Vector3 PadPos(Kind k, int i) => new(3.6f * Side(k), 0, Row(k, i));
+    static Vector3 PadPos(Kind k, int i)
+    {
+        var (side, row) = Seats[(int)k][i];
+        return new(3.6f * side, 0, RowZ[row]);
+    }
     Vector3 RackPos(Kind k) => new(RackX[(int)k], 0, room.zMax - 0.9f);
     Vector3 RackPad(Kind k) => RackPos(k) - new Vector3(0, 0, 1.3f);
 
     void AddStation(Kind k, int i, bool pop)
     {
-        // Piles pair up between rows 0-1 and 2-3 (client, cash, cash, client); a lone top row keeps its cash behind.
-        var s = Station.Create(k, new Vector3(5 * Side(k), 0, Row(k, i)), -90 * Side(k), i % 2 == 0);
+        // Piles pair up between rows 0-1, 2-3, 4-5 (client, cash, cash, client); the lone top row keeps its cash behind.
+        var (side, row) = Seats[(int)k][i];
+        var s = Station.Create(k, new Vector3(5 * side, 0, RowZ[row]), -90 * side, row % 2 == 0);
         stations.Add(s);
         stationAt[(k, i)] = s;
         s.id = k + "" + i;
+        s.training = levels.GetValueOrDefault("t_" + s.id, 1);
         s.SetLevel(levels.GetValueOrDefault(s.id, 1), false);
         if (pop) Fx.Pop(s.transform);
     }
@@ -165,61 +183,89 @@ public class Game : MonoBehaviour
 
     void BuildSteps()
     {
-        Step Add(string id, string label, int cost, Func<Vector3> pos, Action<bool> build, Step[] needs)
+        Step Add(string id, string label, int cost, Func<Vector3> pos, Action<bool> build, Step[] needs, string desc = null)
         {
-            var s = new Step { id = id, label = label, baseCost = cost, pos = pos, build = build, needs = needs };
+            var s = new Step { id = id, label = label, desc = desc, baseCost = cost, pos = pos, build = build, needs = needs };
             steps.Add(s);
             return s;
         }
-        Step Seat(string id, string label, int cost, Kind k, int i, params Step[] needs) =>
-            Add(id, label, cost, () => PadPos(k, i), pop => AddStation(k, i, pop), needs);
+        Step Seat(string id, int cost, Kind k, int i, params Step[] needs) =>
+            Add(id, Theme.Seat[(int)k], cost, () => PadPos(k, i), pop => AddStation(k, i, pop), needs);
         Step Shelf(string id, Kind k, int cost, params Step[] needs) =>
             Add(id, "Scaffale " + ProductName[(int)k], cost, () => RackPad(k), pop => AddRack(k, pop), needs);
-        Step Hire(string id, string label, int cost, Kind k, int i, params Step[] needs) =>
-            Add(id, "Assumi " + label, cost, null, pop => stationAt[(k, i)].Hire(pop), needs);
-        Step Upgrade(string id, string label, int cost, Action apply, params Step[] needs) =>
-            Add(id, label, cost, null, _ => apply(), needs);
+        Step Hire(string id, int cost, Kind k, int i, params Step[] needs) =>
+            Add(id, "Assumi " + Theme.Staff[(int)k], cost, null, pop => stationAt[(k, i)].Hire(pop), needs, "Lavora al posto tuo");
+        Step Upgrade(string id, string label, string desc, int cost, Action apply, params Step[] needs) =>
+            Add(id, label, cost, null, _ => apply(), needs, desc);
         Step Clerk(string id, int cost, params Step[] needs) =>
-            Add(id, "Assumi Magazziniera", cost, null, pop => Runner.Create(new Vector3(0, 0, 6.3f), pop), needs);
+            Add(id, "Assumi Magazziniera", cost, null, pop => Runner.Create(new Vector3(0, 0, 6.3f), pop), needs, "Rifornisce le postazioni");
         Step Grow(string id, int cost, float xMax, float zMax, params Step[] needs) =>
-            Add(id, "Ingrandisci salone", cost, null, pop => Expand(xMax, zMax, pop), needs);
+            Add(id, "Ingrandisci salone", cost, null, pop => Expand(xMax, zMax, pop), needs, "Più spazio nel salone");
         Step Till(string id, int cost, int i, params Step[] needs) =>
             Add(id, "Cassa", cost, () => new Vector3(RegisterX[i], 0, 1.2f), pop => AddRegister(i, pop), needs);
         Step Cashier(string id, int cost, int i, params Step[] needs) =>
-            Add(id, "Assumi Cassiera", cost, null, pop => registers[i].Hire(pop), needs);
+            Add(id, "Assumi Cassiera", cost, null, pop => registers[i].Hire(pop), needs, "Incassa al posto tuo");
+        Step Furnish(string id, string label, string desc, int cost, params Step[] needs) =>
+            Add(id, label, cost, null, pop => Furnishing.Build(id, pop), needs, desc);
 
-        var nails1 = Seat("nails1", Theme.Seat[(int)Kind.Nails], 20, Kind.Nails, 1);
-        var bag1 = Upgrade("bag1", "Borsa più grande", 60, () => player.carrier.capacity += 2);
+        var nails1 = Seat("nails1", 20, Kind.Nails, 1);
+        var bag1 = Upgrade("bag1", "Borsa più grande", "Porti 2 prodotti in più", 60, () => player.carrier.capacity += 2);
         Cashier("cashier0", 150, 0);
-        Hire("nailStaff0", Theme.Staff[(int)Kind.Nails], 120, Kind.Nails, 0);
+        Hire("nailStaff0", 120, Kind.Nails, 0);
         var wide = Grow("wide", 150, 7, 12);
         var hairShelf = Shelf("hairShelf", Kind.Hair, 60, wide);
-        var hair0 = Seat("hair0", Theme.Seat[(int)Kind.Hair], 90, Kind.Hair, 0, hairShelf);
-        Upgrade("speed", "Scarpe veloci", 250, () => player.speed += 1.5f, bag1);
-        Hire("nailStaff1", Theme.Staff[(int)Kind.Nails], 220, Kind.Nails, 1, nails1);
+        var hair0 = Seat("hair0", 90, Kind.Hair, 0, hairShelf);
+        Upgrade("speed", "Scarpe veloci", "Cammini più veloce", 250, () => player.speed += 1.5f, bag1);
+        Hire("nailStaff1", 220, Kind.Nails, 1, nails1);
         var till1 = Till("till1", 250, 1, nails1);
-        var hair1 = Seat("hair1", Theme.Seat[(int)Kind.Hair], 200, Kind.Hair, 1, hair0);
+        var hair1 = Seat("hair1", 200, Kind.Hair, 1, hair0);
+        Furnish("sofa", "Divanetto", "Le clienti aspettano di più", 400, wide);
         Cashier("cashier1", 600, 1, till1);
-        Hire("hairStaff0", Theme.Staff[(int)Kind.Hair], 380, Kind.Hair, 0, hair0);
+        Hire("hairStaff0", 380, Kind.Hair, 0, hair0);
         var deep = Grow("deep", 600, 7, 16.5f, wide);
         var spaShelf = Shelf("spaShelf", Kind.Spa, 350, deep);
-        var spa0 = Seat("spa0", Theme.Seat[(int)Kind.Spa], 450, Kind.Spa, 0, spaShelf);
+        var spa0 = Seat("spa0", 450, Kind.Spa, 0, spaShelf);
         var clerk1 = Clerk("clerk1", 900, hairShelf);
-        Upgrade("bag2", "Borsa XL", 700, () => player.carrier.capacity += 3, bag1);
-        Hire("hairStaff1", Theme.Staff[(int)Kind.Hair], 750, Kind.Hair, 1, hair1);
+        Upgrade("bag2", "Borsa XL", "Porti 3 prodotti in più", 700, () => player.carrier.capacity += 3, bag1);
+        Hire("hairStaff1", 750, Kind.Hair, 1, hair1);
         var makeupShelf = Shelf("makeupShelf", Kind.Makeup, 800, deep);
-        var makeup0 = Seat("makeup0", Theme.Seat[(int)Kind.Makeup], 1000, Kind.Makeup, 0, makeupShelf);
-        Hire("spaStaff0", Theme.Staff[(int)Kind.Spa], 1200, Kind.Spa, 0, spa0);
+        var makeup0 = Seat("makeup0", 1000, Kind.Makeup, 0, makeupShelf);
+        Furnish("coffee", "Macchina del caffè", "Dipendenti più veloci", 1100, wide);
+        Hire("spaStaff0", 1200, Kind.Spa, 0, spa0);
         var till2 = Till("till2", 1200, 2, till1);
         Cashier("cashier2", 1600, 2, till2);
+        Furnish("sign", "Insegna luminosa", "Arrivano più clienti", 1500);
         var full = Grow("full", 1800, 7, 20.5f, deep);
-        var spa1 = Seat("spa1", Theme.Seat[(int)Kind.Spa], 1500, Kind.Spa, 1, full, spa0);
-        var makeup1 = Seat("makeup1", Theme.Seat[(int)Kind.Makeup], 2000, Kind.Makeup, 1, full, makeup0);
-        Hire("makeupStaff0", Theme.Staff[(int)Kind.Makeup], 2200, Kind.Makeup, 0, makeup0);
-        Hire("spaStaff1", Theme.Staff[(int)Kind.Spa], 2500, Kind.Spa, 1, spa1);
-        Hire("makeupStaff1", Theme.Staff[(int)Kind.Makeup], 2800, Kind.Makeup, 1, makeup1);
-        Clerk("clerk2", 3000, clerk1);
+        var spa1 = Seat("spa1", 1500, Kind.Spa, 1, full, spa0);
+        var makeup1 = Seat("makeup1", 2000, Kind.Makeup, 1, full, makeup0);
+        Hire("makeupStaff0", 2200, Kind.Makeup, 0, makeup0);
+        Furnish("carpet", "Tappeto rosso", "VIP più spesso e più ricche", 2600);
+        Hire("spaStaff1", 2500, Kind.Spa, 1, spa1);
+        Hire("makeupStaff1", 2800, Kind.Makeup, 1, makeup1);
+        var clerk2 = Clerk("clerk2", 3000, clerk1);
+
+        // The new wing: pedicure and lashes, then one more row for brows.
+        var wing = Grow("wing", 5000, 7, 27.7f, full);
+        var pediShelf = Shelf("pediShelf", Kind.Pedicure, 3500, wing);
+        var pedi0 = Seat("pedi0", 4000, Kind.Pedicure, 0, pediShelf);
+        var lashShelf = Shelf("lashShelf", Kind.Lashes, 4500, wing);
+        var lash0 = Seat("lash0", 5000, Kind.Lashes, 0, lashShelf);
+        Hire("pediStaff0", 5500, Kind.Pedicure, 0, pedi0);
+        var pedi1 = Seat("pedi1", 6000, Kind.Pedicure, 1, pedi0);
+        Hire("lashStaff0", 6500, Kind.Lashes, 0, lash0);
+        var lash1 = Seat("lash1", 7000, Kind.Lashes, 1, lash0);
+        Clerk("clerk3", 7000, clerk2);
+        Hire("pediStaff1", 7500, Kind.Pedicure, 1, pedi1);
+        Hire("lashStaff1", 8500, Kind.Lashes, 1, lash1);
+        var wing2 = Grow("wing2", 9000, 7, 31.3f, wing);
+        var browShelf = Shelf("browShelf", Kind.Brows, 8000, wing2);
+        var brow0 = Seat("brow0", 9000, Kind.Brows, 0, browShelf);
+        Hire("browStaff0", 10000, Kind.Brows, 0, brow0);
+        var brow1 = Seat("brow1", 11000, Kind.Brows, 1, brow0);
+        Hire("browStaff1", 13000, Kind.Brows, 1, brow1);
     }
+
+    public bool Has(string id) => bought.Contains(id);
 
     int Cost(Step s) => Mathf.RoundToInt(s.baseCost * (1 + Markup * markups.GetValueOrDefault(s.id)) / 5f) * 5;
 
@@ -261,7 +307,7 @@ public class Game : MonoBehaviour
         {
             if (zones.ContainsKey(s.id)) continue;
             var step = s;
-            var z = UnlockZone.Create(s.label, Cost(s), paid.GetValueOrDefault(s.id), want[s.id], () => Purchased(step));
+            var z = UnlockZone.Create(s.label, s.desc, Cost(s), paid.GetValueOrDefault(s.id), want[s.id], () => Purchased(step));
             zones[s.id] = z;
             if (popNew) Fx.Pop(z.transform);
         }
@@ -292,7 +338,8 @@ public class Game : MonoBehaviour
     void RefreshPrestigeZone()
     {
         if (bought.Count < steps.Count || zones.ContainsKey("prestige")) return;
-        var z = UnlockZone.Create("Apri " + Theme.NextTitle.Replace("Nenni's ", ""), PrestigeCost, paid.GetValueOrDefault("prestige"), Slots()[0], AskPrestige);
+        var z = UnlockZone.Create("Apri " + Theme.NextTitle.Replace("Nenni's ", ""), $"Guadagni x{Multiplier + 1}", PrestigeCost,
+            paid.GetValueOrDefault("prestige"), Slots()[0], AskPrestige);
         zones["prestige"] = z;
     }
 
@@ -329,37 +376,146 @@ public class Game : MonoBehaviour
         Save();
     }
 
+    // ---------- Staff training ----------
+
+    public const int MaxClerkLevel = 3;
+    public int ClerkLevel => levels.GetValueOrDefault("t_clerks", 1);
+    public int ClerkTrainCost => 1500 << (ClerkLevel - 1);
+
+    public void Train(Station s)
+    {
+        if (s.training >= Station.MaxTraining || cash < s.TrainCost) return;
+        AddCash(-s.TrainCost);
+        s.SetTraining(s.training + 1, true);
+        levels["t_" + s.id] = s.training;
+        Fx.Sfx("unlock", 0.6f);
+        Save();
+    }
+
+    public void TrainClerks()
+    {
+        if (ClerkLevel >= MaxClerkLevel || cash < ClerkTrainCost) return;
+        AddCash(-ClerkTrainCost);
+        levels["t_clerks"] = ClerkLevel + 1;
+        Runner.Retrain();
+        Fx.Sfx("unlock", 0.6f);
+        Save();
+    }
+
     // ---------- Cosmetics ----------
 
-    public void ApplyCosmetics()
+    public void ApplyCosmetics(bool pop = false)
     {
         player.walker.SetOutfit(Cosmetics.Equipped(Cosmetics.Outfits).a);
         player.walker.SetHair(Cosmetics.Equipped(Cosmetics.Hair).a);
         room.Restyle();
+        bool hope = Cosmetics.DecorOn(Cosmetics.Pets[0].id);
+        if (hope && !pet) pet = Pet.Create(player.transform.position - player.transform.forward * 1.2f, pop);
+        else if (!hope && pet) Destroy(pet.gameObject);
     }
 
-    // ---------- VIP ----------
+    // ---------- VIP and special customers ----------
 
-    public int VipReward(Kind[] plan) => 5 * plan.Sum(k => Game.Price[(int)k]) * Multiplier;
+    // VIPs pay 5x the price of their services, the bride and the star 8x; the red carpet adds 30%.
+    public int VipReward(Customer c)
+    {
+        int x = c.special == Customer.Special.Vip ? 5 : 8;
+        return Mathf.RoundToInt(x * c.Plan.Sum(k => Price[(int)k]) * Multiplier * (Has("carpet") ? 1.3f : 1));
+    }
+
+    static readonly Kind[] BridePlan = { Kind.Hair, Kind.Makeup, Kind.Nails };
 
     void SpawnVip()
     {
         vipTimer -= Time.deltaTime;
         if (vip || vipTimer > 0 || !VipAvailable) return;
-        var kinds = stations.Select(s => s.kind).Distinct().OrderBy(_ => Random.value).Take(Random.Range(2, 4)).ToArray();
-        var first = stations.FirstOrDefault(s => s.kind == kinds[0] && !s.customer);
+        var kinds = stations.Select(s => s.kind).Distinct().ToList();
+        float r = Random.value;
+        var type = r < 0.3f && BridePlan.All(kinds.Contains) ? Customer.Special.Bride
+            : r < 0.55f ? Customer.Special.Star
+            : Customer.Special.Vip;
+        var plan = type switch
+        {
+            Customer.Special.Bride => BridePlan,
+            Customer.Special.Star => new[] { kinds[Random.Range(0, kinds.Count)] },
+            _ => kinds.OrderBy(_ => Random.value).Take(Random.Range(2, 4)).ToArray(),
+        };
+        var first = stations.FirstOrDefault(s => s.kind == plan[0] && !s.customer);
         if (!first) { vipTimer = 3; return; }
-        vip = Customer.Spawn(first, kinds);
-        Hud.I.Toast("Arriva una cliente VIP!", 2.5f);
+        vip = Customer.Spawn(first, plan, type);
+        Hud.I.Toast(type switch
+        {
+            Customer.Special.Bride => "Arriva una sposa!",
+            Customer.Special.Star => "Arriva una star!",
+            _ => "Arriva una cliente VIP!",
+        }, 2.5f);
         Fx.Sfx("unlock", 0.5f);
     }
 
-    public void VipEnded(bool happy)
+    public void VipEnded(Customer c, bool happy)
     {
         vip = null;
-        vipTimer = Random.Range(70f, 110f);
-        Hud.I.Toast(happy ? "VIP soddisfatta!" : "La VIP se n'è andata...", 2.5f);
+        vipTimer = Random.Range(70f, 110f) * (Has("carpet") ? 0.7f : 1);
+        Hud.I.Toast(happy ? c.Title + " soddisfatta!" : c.Who + " se n'è andata...", 2.5f);
     }
+
+    // Two or three friends with matching outfits and pink bows: if none of them storms off, a bonus as big as their bill.
+    void SpawnGroup()
+    {
+        groupTimer -= Time.deltaTime;
+        if (groupTimer > 0) return;
+        groupTimer = Random.Range(90f, 140f);
+        if (bought.Count < 10) return;
+        var free = stations.Where(s => !s.customer).OrderBy(_ => Random.value).Take(3).ToList();
+        if (free.Count < 2) { groupTimer = 5; return; }
+        var outfit = Fx.Outfit();
+        int left = free.Count, bonus = free.Sum(s => s.ServicePrice);
+        bool lost = false;
+        foreach (var s in free)
+            Customer.Spawn(s, friendOutfit: outfit).onLeave = served =>
+            {
+                lost |= !served;
+                if (--left > 0) return;
+                if (lost) { Hud.I.Toast("Un'amica se n'è andata...", 2.5f); return; }
+                AddCash(bonus, track: false);
+                Fx.Sfx("unlock", 0.6f);
+                Hud.I.Toast($"Amiche felici!\n<size=50>Bonus +{Money(bonus)} €</size>", 3);
+            };
+        Hud.I.Toast("Arriva un gruppo di amiche!", 2.5f);
+    }
+
+    // ---------- Rush hour ----------
+    // Every few minutes customers pour in for 45 s; losing none of them pays half of what the rush earned.
+
+    public bool Rush => rushLeft > 0;
+    int RushPrize => rushEarned / 2;
+
+    void UpdateRush()
+    {
+        Hud.I.ShowRush(rushLeft, RushPrize, rushLost);
+        if (Rush)
+        {
+            rushLeft -= Time.deltaTime;
+            if (Rush) return;
+            rushTimer = Random.Range(180f, 260f);
+            if (rushLost || RushPrize == 0) { Hud.I.Toast("Ora di punta finita", 2.5f); return; }
+            AddCash(RushPrize, track: false);
+            Fx.Sfx("unlock", 0.7f);
+            Hud.I.Toast($"Ora di punta superata!\n<size=50>Premio +{Money(RushPrize)} €</size>", 3.5f);
+            return;
+        }
+        if (bought.Count < 12) return;
+        rushTimer -= Time.deltaTime;
+        if (rushTimer > 0) return;
+        rushLeft = 45;
+        rushEarned = 0;
+        rushLost = false;
+        Hud.I.Toast("Ora di punta!\n<size=50>Non perdere nessuna cliente</size>", 3);
+        Fx.Sfx("unlock", 0.6f);
+    }
+
+    public void Paid(int price) { if (Rush) rushEarned += price; }
+    public void CustomerLost() { if (Rush) rushLost = true; }
 
     // ---------- Save ----------
 
@@ -396,6 +552,13 @@ public class Game : MonoBehaviour
         Hud.I.SetCash(cash, false);
         Hud.I.RefreshBadges();
         if (bought.Count == 0 && cash == 0) Hud.I.Toast(Prestige > 0 ? "Benvenuta in " + SalonTitle + "!" : "Trascina per muoverti", 3.5f);
+
+        // After an update, show once what is new (a fresh install just starts playing).
+        if (PlayerPrefs.GetInt("news", 0) < Updater.Version)
+        {
+            PlayerPrefs.SetInt("news", Updater.Version);
+            if (bought.Count > 0 && !Autoplay) Hud.I.ShowNews();
+        }
     }
 
     void Save()
@@ -445,6 +608,8 @@ public class Game : MonoBehaviour
     {
         SpawnCustomers();
         SpawnVip();
+        SpawnGroup();
+        UpdateRush();
         Hud.I.ShowVip(vip);
         UpdateArrow();
         if (musicTask is { IsCompleted: true })
@@ -482,7 +647,7 @@ public class Game : MonoBehaviour
         var free = stations.Where(s => !s.customer).ToList();
         if (free.Count == 0) { spawnTimer = 0.5f; return; }
         Customer.Spawn(free[Random.Range(0, free.Count)]);
-        spawnTimer = Random.Range(1.2f, 3f) / Mathf.Sqrt(stations.Count);
+        spawnTimer = Random.Range(1.2f, 3f) / Mathf.Sqrt(stations.Count) / (Has("sign") ? 1.5f : 1) / (Rush ? 3 : 1);
     }
 
     // Bouncing pointer: teaches the loop in the first salon only, gone after the first three unlocks.
@@ -603,37 +768,37 @@ public class Game : MonoBehaviour
         }
 
         // The salon's lot: paved patio (future expansions land on it) framed by a flowering hedge.
-        var patio = Fx.Box(world, new(0, -0.07f, 10.7f), new(16.8f, 0.1f, 22.6f), Color.white);
+        var patio = Fx.Box(world, new(0, -0.07f, 16.1f), new(16.8f, 0.1f, 33.4f), Color.white);
         patio.GetComponent<Renderer>().sharedMaterial = new Material(Fx.Mat(Color.white))
         {
             mainTexture = Room.Tiles(Fx.Hex("#F1E9F4"), Fx.Hex("#E2D6EA")),
             mainTextureScale = Vector2.one / 1.5f,
         };
         var hedge = Fx.Hex("#7BC67E");
-        Fx.Box(world, new(-8.8f, 0.45f, 10.8f), new(0.8f, 0.9f, 22.8f), hedge);
-        Fx.Box(world, new(8.8f, 0.45f, 10.8f), new(0.8f, 0.9f, 22.8f), hedge);
-        Fx.Box(world, new(0, 0.45f, 22.4f), new(18.4f, 0.9f, 0.8f), hedge);
+        Fx.Box(world, new(-8.8f, 0.45f, 16.2f), new(0.8f, 0.9f, 33.6f), hedge);
+        Fx.Box(world, new(8.8f, 0.45f, 16.2f), new(0.8f, 0.9f, 33.6f), hedge);
+        Fx.Box(world, new(0, 0.45f, 33.2f), new(18.4f, 0.9f, 0.8f), hedge);
         var blossoms = Theme.Christmas ? new[] { Fx.Hex("#FF4D5E"), Color.white, Color.white } : new[] { pink, Fx.Hex("#FFD166"), Color.white };
         int bloom = 0;
-        for (float z = 0.4f; z < 22; z += 1.4f)
+        for (float z = 0.4f; z < 32.8f; z += 1.4f)
         {
             Fx.Ball(world, new(-8.8f, 0.93f, z), 0.18f, blossoms[bloom++ % 3]);
             Fx.Ball(world, new(8.8f, 0.93f, z), 0.18f, blossoms[bloom++ % 3]);
         }
-        for (float x = -8; x <= 8; x += 1.4f) Fx.Ball(world, new(x, 0.93f, 22.4f), 0.18f, blossoms[bloom++ % 3]);
-        for (float z = 3; z < 21; z += 4.5f)
+        for (float x = -8; x <= 8; x += 1.4f) Fx.Ball(world, new(x, 0.93f, 33.2f), 0.18f, blossoms[bloom++ % 3]);
+        for (float z = 3; z < 32; z += 4.5f)
         {
             Pot(world, new(-7.95f, 0, z));
             Pot(world, new(7.95f, 0, z));
         }
 
         // Trees in neat rows on the lawn and in sidewalk planters.
-        foreach (var z in new[] { 1f, 7f, 13f, 19f })
+        foreach (var z in new[] { 1f, 7f, 13f, 19f, 25f, 31f })
         {
             Tree(world, new(-11.5f, 0, z));
             Tree(world, new(11.5f, 0, z));
         }
-        for (float x = -10; x <= 10; x += 5) Tree(world, new(x, 0, 25.5f));
+        for (float x = -10; x <= 10; x += 5) Tree(world, new(x, 0, 36.3f));
         foreach (var x in new[] { 12f, 18f })
         {
             Fx.Cyl(world, new(x, 0.08f, -1.6f), new(1.3f, 0.08f, 1.3f), Color.white);
@@ -647,7 +812,7 @@ public class Game : MonoBehaviour
         var wild = new[] { Color.white, Fx.Hex("#FFD166"), pink, Fx.Hex("#B388FF") };
         for (int n = 0; n < 45; n++)
         {
-            float cx = (float)rng.NextDouble() * 50 - 25, cz = (float)rng.NextDouble() * 44 - 16;
+            float cx = (float)rng.NextDouble() * 50 - 25, cz = (float)rng.NextDouble() * 56 - 16;
             var color = wild[n % wild.Length];
             for (int k = 0; k < 3; k++)
             {
@@ -658,7 +823,7 @@ public class Game : MonoBehaviour
     }
 
     // Lot (salon + patio + hedge), sidewalk and road: no wildflowers there.
-    static bool OnLot(float x, float z) => (Mathf.Abs(x) < 9.6f && z > -0.6f && z < 23.2f) || (z > -10f && z < -0.2f);
+    static bool OnLot(float x, float z) => (Mathf.Abs(x) < 9.6f && z > -0.6f && z < 34f) || (z > -10f && z < -0.2f);
 
     static void Pot(Transform parent, Vector3 p)
     {

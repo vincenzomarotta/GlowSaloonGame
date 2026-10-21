@@ -18,19 +18,36 @@ public class Runner : MonoBehaviour
     {
         var w = Fx.Person(pos, Fx.Hex("#B9A2E8"), Fx.NaturalHair(), Fx.Skin(), false);
         Fx.Box(w.model, new(0, 1.42f, 0.05f), new(0.5f, 0.12f, 0.5f), Fx.Hex("#FF6FB5")); // cap
-        w.speed = 3.6f;
         var r = w.gameObject.AddComponent<Runner>();
         r.walker = w;
         r.carrier = Carrier.Create(w, false);
-        r.carrier.capacity = 5;
+        r.Train();
         Game.I.carriers.Add(r.carrier);
         all.Add(r);
         if (pop) Fx.Pop(w.transform);
     }
 
+    // Each training level (shop, "Personale"): +20% speed and 2 more products.
+    void Train()
+    {
+        int lv = Game.I.ClerkLevel;
+        walker.speed = 3.6f * (1 + 0.2f * (lv - 1));
+        carrier.capacity = 5 + 2 * (lv - 1);
+    }
+
+    public static void Retrain() => all.ForEach(r => r.Train());
+    public static int Count => all.Count;
+
     void OnDestroy() => all.Remove(this);
 
-    void Route(Vector3 dest) => walker.GoViaAisle(dest);
+    // Through the central aisle, but crossing the back of the salon 1.4 m short of the shelves' pads:
+    // walking over the middle (brows) shelf's pad loaded the wrong products and left the clerk stuck with them.
+    void Route(Vector3 dest)
+    {
+        var p = transform.position;
+        float lane = Game.I.room.zMax - 3.6f, z0 = Mathf.Min(p.z, lane), z1 = Mathf.Min(dest.z, lane);
+        walker.Go(new(p.x, 0, z0), new(0, 0, z0), new(0, 0, z1), new(dest.x, 0, z1), dest);
+    }
 
     bool ClaimedByOther(Station s) => all.Exists(r => r != this && r.target == s);
 

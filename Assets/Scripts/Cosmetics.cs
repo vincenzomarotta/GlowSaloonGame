@@ -51,6 +51,9 @@ public static class Cosmetics
         new("d2", "Cuori", 3000, "#FF4F8B"), new("d3", "Piantine", 2500, "#7BC67E"),
     };
 
+    // Toggleable like decorations: Hope follows the player around the salon.
+    public static readonly Item[] Pets = { new("p0", "Hope", 1500, "#F28C28", "#FFFFFF") };
+
     static HashSet<string> owned;
     static HashSet<string> Owned => owned ??= new HashSet<string>(PlayerPrefs.GetString("v2.owned", "").Split(',').Where(s => s != ""));
 

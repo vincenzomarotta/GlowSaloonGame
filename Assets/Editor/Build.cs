@@ -13,7 +13,7 @@ public static class Build
     const string ScenePath = "Assets/Scenes/Main.unity";
     const string ApkPath = "Builds/NennisSaloon.apk";
     // Bump for every release: it is the Android versionCode, the shown version and the GitHub release tag "v<Version>".
-    public const int Version = 4;
+    public const int Version = 5;
 
     [MenuItem("Glow Salon/Build APK")]
     public static void Apk() => Apk(BuildOptions.None);

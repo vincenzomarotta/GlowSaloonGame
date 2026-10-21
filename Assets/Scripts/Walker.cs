@@ -24,13 +24,6 @@ public class Walker : MonoBehaviour
         foreach (var p in points) path.Enqueue(p);
     }
 
-    // Staff route through the central aisle (x = 0) so they never cut across furniture.
-    public void GoViaAisle(Vector3 dest)
-    {
-        var p = transform.position;
-        Go(new Vector3(0, 0, p.z), new Vector3(0, 0, dest.z), dest);
-    }
-
     public void Pose(float y, Quaternion rot) { baseY = y; pose = rot; }
     public void Work(float seconds = 0.15f) => workUntil = Mathf.Max(workUntil, Time.time + seconds);
     public void SetHair(Color c) { foreach (var r in hair) r.sharedMaterial = Fx.Mat(c); }

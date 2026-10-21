@@ -19,9 +19,10 @@ public class Hud : MonoBehaviour
     static readonly Color Mint = Fx.Hex("#5FD3A0");
 
     Canvas canvas;
-    RectTransform root, cashPill, stickBase, stickKnob, settingsButton, shopButton, missionButton, pauseButton, vipPill;
+    RectTransform root, cashPill, stickBase, stickKnob, settingsButton, shopButton, missionButton, pauseButton, vipPill, rushPill;
     GameObject missionBadge, panel;
-    Text cashText, toast, vipText;
+    Text cashText, toast, vipText, rushText;
+    Image toastBg;
     Vector2 origin;
     bool dragging;
     float punch, toastTime;
@@ -229,6 +230,12 @@ public class Hud : MonoBehaviour
         vipText = Txt(vipPill, 42, Ink, Vector2.zero);
         vipPill.gameObject.SetActive(false);
 
+        rushPill = Img(root, Accent, new(720, 80), Vector2.zero).rectTransform;
+        rushPill.anchorMin = rushPill.anchorMax = new(0.5f, 1);
+        rushPill.pivot = new(0.5f, 1);
+        rushText = Txt(rushPill, 40, Color.white, Vector2.zero);
+        rushPill.gameObject.SetActive(false);
+
         settingsButton = SideButton(Gear);
         shopButton = SideButton(Bag);
         missionButton = SideButton(List);
@@ -237,6 +244,9 @@ public class Hud : MonoBehaviour
         var badge = (RectTransform)missionBadge.transform;
         badge.anchorMin = badge.anchorMax = new(1, 1);
 
+        // Over a panel's white card the white toast would vanish: a pink pill goes behind it there.
+        toastBg = Img(root, Accent, Vector2.zero, new(0, 420));
+        toastBg.gameObject.SetActive(false);
         toast = Txt(root, 76, Color.white, new(0, 420));
         var shadow = toast.gameObject.AddComponent<Shadow>();
         shadow.effectColor = Accent;
@@ -252,13 +262,16 @@ public class Hud : MonoBehaviour
 
     void Start()
     {
-        // Test aids for screenshots: -autoplay together with -settings / -shop / -missions.
+        // Test aids for screenshots: -autoplay together with -settings / -shop [-tab N] / -missions / -pause / -news.
         if (!Game.Autoplay) return;
         var args = Environment.GetCommandLineArgs();
+        int tab = Array.IndexOf(args, "-tab");
+        if (tab >= 0 && tab + 1 < args.Length) int.TryParse(args[tab + 1], out shopTab);
         if (args.Contains("-settings")) Open(BuildSettings);
         if (args.Contains("-shop")) Open(BuildShop);
         if (args.Contains("-missions")) Open(BuildMissions);
         if (args.Contains("-pause")) Open(BuildPause);
+        if (args.Contains("-news")) ShowNews();
     }
 
     // ---------- Panels ----------
@@ -278,6 +291,7 @@ public class Hud : MonoBehaviour
         panelTaps.Clear();
         panel = FullScreen(root, new Color(0.18f, 0.1f, 0.25f, 0.55f)).gameObject;
         panelBuild((RectTransform)panel.transform);
+        toastBg.transform.SetAsLastSibling();
         toast.transform.SetAsLastSibling();
     }
 
@@ -320,7 +334,7 @@ public class Hud : MonoBehaviour
         Toggle(card, "Suoni", 170, () => Settings.Sounds, v => Settings.Sounds = v);
         Toggle(card, "Vibrazione", 30, () => Settings.Vibration, v => { Settings.Vibration = v; Haptics.Tick(30, 120); });
         Button(card, "Cerca aggiornamenti", Soft, new(600, 100), new(0, -100), Updater.Check, 46, Ink);
-        Txt(card, 36, Lilac, new(0, -180), "Versione " + Updater.Version);
+        Button(card, $"Versione {Updater.Version}  ·  Novità", Color.clear, new(600, 70), new(0, -180), ShowNews, 36, Lilac);
         Img(card, Soft, new(700, 6), new(0, -240));
         var love = Txt(card, 60, Accent, new(0, -350), "Ti amo nennina,\nbuon anniversario <3");
         love.lineSpacing = 1.1f;
@@ -338,7 +352,7 @@ public class Hud : MonoBehaviour
         panelTaps.Add((row, () => { set(!get()); Fx.Sfx("pop", 0.4f); Rebuild(); }));
     }
 
-    static readonly string[] ShopTabs = { "Vestiti", "Capelli", "Pareti", "Pavimento", "Decori", "Postazioni" };
+    static readonly string[] ShopTabs = { "Vestiti", "Capelli", "Pareti", "Pavimento", "Decori", "Postazioni", "Personale", "Animali" };
 
     void BuildShop(RectTransform dim)
     {
@@ -349,23 +363,45 @@ public class Hud : MonoBehaviour
         {
             int tab = i;
             bool sel = tab == shopTab;
-            Button(card, ShopTabs[i], sel ? Accent : Soft, new(275, 86), new(-290 + (i % 3) * 290, 500 - (i / 3) * 100),
+            Button(card, ShopTabs[i], sel ? Accent : Soft, new(275, 80), new(-290 + (i % 3) * 290, 505 - (i / 3) * 95),
                 () => { shopTab = tab; Rebuild(); }, 42, sel ? Color.white : Ink);
         }
 
         if (shopTab < 4)
         {
             var set = new[] { Cosmetics.Outfits, Cosmetics.Hair, Cosmetics.Walls, Cosmetics.Floors }[shopTab];
-            for (int i = 0; i < set.Length; i++) Swatch(card, set, set[i], new(-285 + (i % 3) * 285, 170 - (i / 3) * 420));
+            for (int i = 0; i < set.Length; i++) Swatch(card, set, set[i], new(-285 + (i % 3) * 285, 60 - (i / 3) * 420));
         }
         else if (shopTab == 4)
         {
-            for (int i = 0; i < Cosmetics.Decor.Length; i++) DecorRow(card, Cosmetics.Decor[i], 230 - i * 150);
+            for (int i = 0; i < Cosmetics.Decor.Length; i++) DecorRow(card, Cosmetics.Decor[i], 170 - i * 150);
+        }
+        else if (shopTab == 5)
+        {
+            // One row per service, one button per seat: level and the price of the next one.
+            var kinds = game.stations.GroupBy(s => s.kind).OrderBy(g => g.Key).ToList();
+            for (int i = 0; i < kinds.Count; i++)
+                LevelRow(card, Game.ServiceName[(int)kinds[i].Key], 170 - i * 104, kinds[i].OrderBy(s => s.id)
+                    .Select(s => (s.level, Station.MaxLevel, s.UpgradeCost, (Action)(() => Game.I.Upgrade(s)))).ToList());
+        }
+        else if (shopTab == 6)
+        {
+            // Training: each level makes the worker 25% faster (stock clerks: faster and carrying more).
+            var kinds = game.stations.Where(s => s.HasStaff).GroupBy(s => s.kind).OrderBy(g => g.Key).ToList();
+            int row = 0;
+            foreach (var g in kinds)
+                LevelRow(card, Theme.Staff[(int)g.Key], 170 - row++ * 104, g.OrderBy(s => s.id)
+                    .Select(s => (s.training, Station.MaxTraining, s.TrainCost, (Action)(() => Game.I.Train(s)))).ToList());
+            if (Runner.Count > 0)
+                LevelRow(card, "Magazziniere", 170 - row++ * 104,
+                    new() { (game.ClerkLevel, Game.MaxClerkLevel, game.ClerkTrainCost, (Action)game.TrainClerks) });
+            if (row == 0) Txt(card, 44, Lilac, new(0, 60), "Assumi qualcuno\nper poterlo formare!").lineSpacing = 1.1f;
         }
         else
         {
-            var stations = game.stations.OrderBy(s => s.kind).ThenBy(s => s.id).ToList();
-            for (int i = 0; i < stations.Count; i++) LevelRow(card, stations[i], 270 - i * 112);
+            // The dog's name is a surprise: it shows only once adopted.
+            var dog = Cosmetics.Pets[0];
+            DecorRow(card, dog, 170, "Ti segue ovunque nel salone", Cosmetics.Has(dog) ? dog.name : "Cagnolino");
         }
         CloseButton(card);
     }
@@ -387,16 +423,18 @@ public class Hud : MonoBehaviour
             if (!owned && !Pay(item.price)) return;
             if (!owned) Cosmetics.Buy(item);
             Cosmetics.Equip(set, item);
-            Game.I.ApplyCosmetics();
+            Game.I.ApplyCosmetics(true);
             Rebuild();
         }));
     }
 
-    void DecorRow(RectTransform card, Cosmetics.Item item, float y)
+    void DecorRow(RectTransform card, Cosmetics.Item item, float y, string sub = null, string name = null)
     {
         var row = Img(card, Soft, new(820, 124), new(0, y)).rectTransform;
         Img(row, item.a, new(70, 70), new(-345, 0));
-        LeftTxt(row, 50, Ink, new(-60, 0), 480, item.name);
+        if (item.b != item.a) Img(row, item.b, new(30, 30), new(-345, 0));
+        LeftTxt(row, 50, Ink, new(-60, sub != null ? 18 : 0), 480, name ?? item.name);
+        if (sub != null) LeftTxt(row, 32, Lilac, new(-60, -30), 480, sub);
         bool owned = Cosmetics.Has(item), on = Cosmetics.DecorOn(item.id);
         string label = !owned ? Game.Money(item.price) + " €" : on ? "Attivo" : "Spento";
         var bg = !owned ? (Game.I.cash >= item.price ? Accent : Disabled) : on ? Mint : Lilac;
@@ -405,27 +443,28 @@ public class Hud : MonoBehaviour
             if (!owned && !Pay(item.price)) return;
             if (!owned) Cosmetics.Buy(item);
             Cosmetics.SetDecor(item, !owned || !on);
-            Game.I.ApplyCosmetics();
+            Game.I.ApplyCosmetics(true);
             Rebuild();
         }, 42);
     }
 
-    void LevelRow(RectTransform card, Station s, float y)
+    // Name on the left, then one button per seat (or worker) with its level and the price of the next level.
+    void LevelRow(RectTransform card, string label, float y, List<(int lv, int max, int cost, Action buy)> slots)
     {
-        var row = Img(card, Soft, new(820, 100), new(0, y)).rectTransform;
-        LeftTxt(row, 44, Ink, new(-120, 0), 520, $"{Game.ServiceName[(int)s.kind]} {s.id[^1] - '0' + 1}  ·  Lv {s.level}/{Station.MaxLevel}");
-        if (s.level >= Station.MaxLevel)
+        var row = Img(card, Soft, new(820, 94), new(0, y)).rectTransform;
+        LeftTxt(row, 42, Ink, new(-205, 0), 360, label);
+        for (int i = 0; i < slots.Count; i++)
         {
-            Button(row, "MAX", Mint, new(270, 76), new(255, 0), null, 40);
-            return;
+            var (lv, max, cost, buy) = slots[i];
+            var pos = new Vector2(95 + i * 210, 0);
+            if (lv >= max) { Button(row, $"Lv {lv}\nMAX", Mint, new(200, 80), pos, null, 30); continue; }
+            Button(row, $"Lv {lv}\n{Game.Money(cost)} €", Game.I.cash >= cost ? Accent : Disabled, new(200, 80), pos, () =>
+            {
+                if (Game.I.cash < cost) { Toast("Servono più soldi!"); return; }
+                buy();
+                Rebuild();
+            }, 30);
         }
-        int cost = s.UpgradeCost;
-        Button(row, Game.Money(cost) + " €", Game.I.cash >= cost ? Accent : Disabled, new(270, 76), new(255, 0), () =>
-        {
-            if (Game.I.cash < cost) { Toast("Servono più soldi!"); return; }
-            Game.I.Upgrade(s);
-            Rebuild();
-        }, 40);
     }
 
     static bool Pay(int price)
@@ -461,6 +500,27 @@ public class Hud : MonoBehaviour
         CloseButton(card);
     }
 
+    // Shown once after an update (Game.Load) and from Settings. Rewrite it for every release that adds something.
+    const string NewsTitle = "Novità della versione 5";
+    const string News =
+        "• <b>3 servizi nuovi</b>: Pedicure, Ciglia e Sopracciglia, con scaffali e dipendenti. Si sbloccano ingrandendo ancora il salone.\n" +
+        "• <b>Arredi con bonus</b>: Divanetto (le clienti aspettano di più), Macchina del caffè (dipendenti più veloci), Insegna luminosa (più clienti), Tappeto rosso (VIP più spesso e più ricche). Ogni casella ora dice cosa fa.\n" +
+        "• <b>Postazioni più belle</b> a ogni livello: bordo dorato, fiori, lampada e tappeto d'oro.\n" +
+        "• <b>Clienti speciali</b>, solo con le tue mani come le VIP: la Sposa (piega, trucco e unghie) e la Star (un servizio, di corsa).\n" +
+        "• <b>Gruppi di amiche</b> col fiocco rosa: se le servi tutte senza perderne nessuna, ricevi un bonus.\n" +
+        "• <b>Ora di punta</b>: per 45 secondi arrivano tante clienti. Se non ne perdi nessuna vinci metà dell'incasso.\n" +
+        "• <b>Negozio › Personale</b>: forma dipendenti e magazziniere, lavorano più veloci.\n" +
+        "• <b>Negozio › Animali</b>: adotta un cagnolino che ti segue ovunque.\n" +
+        "• I messaggi nei menu ora si leggono bene.";
+
+    public void ShowNews() => Open(dim =>
+    {
+        var card = Card(dim, new(940, 1640), NewsTitle);
+        var t = LeftTxt(card, 38, Ink, new(0, 15), 840, News);
+        t.lineSpacing = 1.05f;
+        Button(card, "Evviva!", Accent, new(380, 115), new(0, -720), Close, 54);
+    });
+
     public void Confirm(string title, string body, string yes, Action onYes, Action onNo)
     {
         Open(dim =>
@@ -494,8 +554,17 @@ public class Hud : MonoBehaviour
         if (vipPill.gameObject.activeSelf != on) vipPill.gameObject.SetActive(on);
         if (!on) return;
         int left = Mathf.Max(0, Mathf.CeilToInt(vip.VipTimeLeft));
-        vipText.text = $"VIP {vip.Step + 1}/{vip.Plan.Length}: {Game.ServiceName[(int)vip.Plan[vip.Step]]}   {left / 60}:{left % 60:00}";
+        vipText.text = $"{vip.Title} {vip.Step + 1}/{vip.Plan.Length}: {Game.ServiceName[(int)vip.Plan[vip.Step]]}   {left / 60}:{left % 60:00}";
         vipText.color = left < 15 ? Accent : Ink;
+    }
+
+    public void ShowRush(float secondsLeft, int prize, bool lost)
+    {
+        bool on = secondsLeft > 0;
+        if (rushPill.gameObject.activeSelf != on) rushPill.gameObject.SetActive(on);
+        if (!on) return;
+        int left = Mathf.CeilToInt(secondsLeft);
+        rushText.text = lost ? $"Ora di punta  0:{left:00}  ·  premio perso" : $"Ora di punta  0:{left:00}  ·  premio +{Game.Money(prize)} €";
     }
 
     void Update()
@@ -506,6 +575,7 @@ public class Hud : MonoBehaviour
         float top = (Screen.height - Screen.safeArea.yMax) / canvas.scaleFactor;
         cashPill.anchoredPosition = new(0, -top - 40);
         vipPill.anchoredPosition = new(0, -top - 180);
+        rushPill.anchoredPosition = new(0, -top - (vipPill.gameObject.activeSelf ? 280 : 180));
         settingsButton.anchoredPosition = new(-30, -top - 35);
         shopButton.anchoredPosition = new(-30, -top - 175);
         missionButton.anchoredPosition = new(-30, -top - 315);
@@ -514,8 +584,17 @@ public class Hud : MonoBehaviour
         cashPill.localScale = Vector3.one * (1 + punch);
 
         toastTime -= Time.unscaledDeltaTime;
-        toast.color = new Color(1, 1, 1, Mathf.Clamp01(toastTime * 3));
+        float alpha = Mathf.Clamp01(toastTime * 3);
+        toast.color = new Color(1, 1, 1, alpha);
         toast.rectTransform.localScale = Vector3.one * (1 + Mathf.Clamp01(toastTime - 1.5f));
+        bool bg = panel && alpha > 0 && toast.text != "";
+        if (toastBg.gameObject.activeSelf != bg) toastBg.gameObject.SetActive(bg);
+        if (bg)
+        {
+            toastBg.color = new Color(Accent.r, Accent.g, Accent.b, alpha * 0.95f);
+            toastBg.rectTransform.sizeDelta = new(toast.preferredWidth + 80, toast.preferredHeight + 36);
+            toastBg.rectTransform.localScale = toast.rectTransform.localScale;
+        }
     }
 
     // Floating joystick: touch anywhere, drag to move; the base follows the finger past its radius.

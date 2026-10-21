@@ -1,20 +1,28 @@
+using System;
 using System.Linq;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 // Walks in, sits at a reserved station, waits for the service, pays and leaves.
-// VIPs chain several services against a deadline and only accept the player's hands.
+// Special customers (VIP, bride, star) chain services against a deadline and only accept the player's hands.
 // Regular customers lose patience while nobody works on them.
 public class Customer : MonoBehaviour
 {
+    public enum Special { None, Vip, Bride, Star }
+
     const float VipSecondsPerService = 45f;
     static readonly Color Angry = Fx.Hex("#FF6B6B");
 
+    public Special special;
+    public Action<bool> onLeave; // friends in a group: true when served, false when she stormed off
     public bool Seated { get; private set; }
-    public bool Vip => plan != null;
+    public bool Vip => special != Special.None;
     public bool LastService => !Vip || step == plan.Length - 1;
     public float VipTimeLeft => deadline - Time.time;
     public Kind[] Plan => plan;
     public int Step => step;
+    public string Title => special switch { Special.Bride => "Sposa", Special.Star => "Star", _ => "VIP" };
+    public string Who => special switch { Special.Bride => "La sposa", Special.Star => "La star", _ => "La VIP" };
 
     Station station;
     Walker walker;
@@ -25,22 +33,40 @@ public class Customer : MonoBehaviour
     float patience, maxPatience, deadline;
     bool leaving, waitingForSeat;
 
-    public static Customer Spawn(Station s, Kind[] vipPlan = null)
+    public static Customer Spawn(Station s, Kind[] plan = null, Special special = Special.None, Color? friendOutfit = null)
     {
         // Arrives along the sidewalk from either side.
         var start = new Vector3(Random.value < 0.5f ? -11 : 11, 0, Game.Door.z + Random.Range(-0.4f, 0.4f));
-        bool vip = vipPlan != null;
-        var w = Fx.Person(start, vip ? Fx.Hex("#FFD166") : Fx.Outfit(), Fx.NaturalHair(), Fx.Skin(), !vip && Random.value < 0.6f);
-        w.speed = vip ? 3.6f : 3.2f;
+        var outfit = special switch
+        {
+            Special.Vip => Fx.Hex("#FFD166"),
+            Special.Bride => Color.white,
+            Special.Star => Fx.Hex("#9B5DE5"),
+            _ => friendOutfit ?? Fx.Outfit(),
+        };
+        var w = Fx.Person(start, outfit, Fx.NaturalHair(), Fx.Skin(), special == Special.None && Random.value < 0.6f);
+        w.speed = special != Special.None ? 3.6f : 3.2f;
         var c = w.gameObject.AddComponent<Customer>();
         c.walker = w;
-        c.plan = vipPlan;
-        if (vip)
+        c.special = special;
+        c.plan = plan;
+        switch (special)
         {
-            c.deadline = Time.time + VipSecondsPerService * vipPlan.Length + 10;
-            Crown(w.model);
+            case Special.Vip:
+                c.deadline = Time.time + VipSecondsPerService * plan.Length + 10;
+                Crown(w.model);
+                break;
+            case Special.Bride:
+                c.deadline = Time.time + VipSecondsPerService * plan.Length + 15;
+                Veil(w.model);
+                break;
+            case Special.Star:
+                c.deadline = Time.time + 35;
+                Sunglasses(w.model);
+                break;
         }
-        c.maxPatience = c.patience = 28 + 6 * (int)s.kind;
+        if (friendOutfit.HasValue) Bow(w.model);
+        c.maxPatience = c.patience = (28 + 6 * (int)s.kind) * (Game.I.Has("sofa") ? 1.5f : 1);
         c.Reserve(s, new[] { Game.Door }.Concat(s.EntryPath()).ToArray());
         return c;
     }
@@ -55,6 +81,30 @@ public class Customer : MonoBehaviour
             Fx.Ball(model, new(Mathf.Sin(a) * 0.16f, 1.66f, Mathf.Cos(a) * 0.16f - 0.02f), 0.09f, gold);
         }
         Fx.Ball(model, new(0, 1.66f, 0.17f), 0.08f, Fx.Hex("#FF4F8B"));
+    }
+
+    // Long white veil down her back and a little silver tiara.
+    static void Veil(Transform model)
+    {
+        Fx.Ball(model, new(0, 1.1f, -0.3f), new Vector3(0.72f, 0.95f, 0.22f), Fx.Hex("#F4F1FA"));
+        for (int i = -2; i <= 2; i++) Fx.Ball(model, new(i * 0.09f, 1.5f - Mathf.Abs(i) * 0.025f, 0.12f), 0.07f, Fx.Hex("#DDE3F0"));
+        Fx.Ball(model, new(0, 1.53f, 0.14f), 0.08f, Fx.Hex("#9FD8F5"));
+    }
+
+    static void Sunglasses(Transform model)
+    {
+        var black = Fx.Hex("#2B2230");
+        foreach (var x in new[] { -0.12f, 0.12f }) Fx.Ball(model, new(x, 1.16f, 0.31f), new Vector3(0.17f, 0.12f, 0.05f), black);
+        Fx.Box(model, new(0, 1.18f, 0.32f), new(0.1f, 0.025f, 0.02f), black);
+    }
+
+    // Pink bow on top of the head: she came with her friends.
+    static void Bow(Transform model)
+    {
+        var pink = Fx.Hex("#FF6FB5");
+        Fx.Ball(model, new(-0.1f, 1.5f, 0.08f), new Vector3(0.16f, 0.12f, 0.08f), pink);
+        Fx.Ball(model, new(0.1f, 1.5f, 0.08f), new Vector3(0.16f, 0.12f, 0.08f), pink);
+        Fx.Ball(model, new(0, 1.5f, 0.1f), 0.07f, Fx.Hex("#FF4F8B"));
     }
 
     void Reserve(Station s, Vector3[] path)
@@ -94,7 +144,7 @@ public class Customer : MonoBehaviour
             return;
         }
 
-        // Patience drains while nobody is working on her (VIPs have their own clock).
+        // Patience drains while nobody is working on her (special customers have their own clock).
         if (!Vip && Game.I.Impatience && !station.Working)
         {
             patience -= Time.deltaTime;
@@ -134,13 +184,22 @@ public class Customer : MonoBehaviour
         walker.Go(back.Concat(new[] { Game.Door, away }).ToArray());
     }
 
+    void Left(bool served)
+    {
+        onLeave?.Invoke(served);
+        onLeave = null;
+    }
+
     // Waited too long: leaves without paying.
     void StormOff()
     {
         StandUp();
         Fx.Burst(transform.position + Vector3.up * 1.6f, 10, Angry, Fx.Hex("#4A3F55"));
-        Fx.FloatText(transform.position + Vector3.up * 2.4f, Vip ? "VIP persa!" : "Uffa!", Angry);
-        if (Vip) Game.I.VipEnded(false);
+        Fx.FloatText(transform.position + Vector3.up * 2.4f, Vip ? Title + " persa!" : "Uffa!", Angry);
+        if (Vip) Game.I.VipEnded(this, false);
+        Game.I.CustomerLost();
+        Left(false);
+        special = Special.None;
         plan = null;
         LeaveSalon();
     }
@@ -165,7 +224,8 @@ public class Customer : MonoBehaviour
             }
             return;
         }
-        if (Vip) Game.I.VipEnded(true);
+        if (Vip) Game.I.VipEnded(this, true);
+        Left(true);
         LeaveSalon();
     }
 }
