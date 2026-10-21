@@ -501,8 +501,9 @@ public class Hud : MonoBehaviour
     }
 
     // Shown once after an update (Game.Load) and from Settings. Rewrite it for every release that adds something.
-    const string NewsTitle = "Novità della versione 5";
+    const string NewsTitle = "Novità della versione 6";
     const string News =
+        "• <b>Nuovo</b>: altre 2 magazziniere da assumere nell'ala nuova. Sposa e Star ora pagano un po' meno.\n" +
         "• <b>3 servizi nuovi</b>: Pedicure, Ciglia e Sopracciglia, con scaffali e dipendenti. Si sbloccano ingrandendo ancora il salone.\n" +
         "• <b>Arredi con bonus</b>: Divanetto (le clienti aspettano di più), Macchina del caffè (dipendenti più veloci), Insegna luminosa (più clienti), Tappeto rosso (VIP più spesso e più ricche). Ogni casella ora dice cosa fa.\n" +
         "• <b>Postazioni più belle</b> a ogni livello: bordo dorato, fiori, lampada e tappeto d'oro.\n" +

@@ -254,12 +254,14 @@ public class Game : MonoBehaviour
         var pedi1 = Seat("pedi1", 6000, Kind.Pedicure, 1, pedi0);
         Hire("lashStaff0", 6500, Kind.Lashes, 0, lash0);
         var lash1 = Seat("lash1", 7000, Kind.Lashes, 1, lash0);
-        Clerk("clerk3", 7000, clerk2);
+        var clerk3 = Clerk("clerk3", 7000, clerk2);
         Hire("pediStaff1", 7500, Kind.Pedicure, 1, pedi1);
+        var clerk4 = Clerk("clerk4", 8000, clerk3);
         Hire("lashStaff1", 8500, Kind.Lashes, 1, lash1);
         var wing2 = Grow("wing2", 9000, 7, 31.3f, wing);
         var browShelf = Shelf("browShelf", Kind.Brows, 8000, wing2);
         var brow0 = Seat("brow0", 9000, Kind.Brows, 0, browShelf);
+        Clerk("clerk5", 10000, clerk4, wing2);
         Hire("browStaff0", 10000, Kind.Brows, 0, brow0);
         var brow1 = Seat("brow1", 11000, Kind.Brows, 1, brow0);
         Hire("browStaff1", 13000, Kind.Brows, 1, brow1);
@@ -416,10 +418,10 @@ public class Game : MonoBehaviour
 
     // ---------- VIP and special customers ----------
 
-    // VIPs pay 5x the price of their services, the bride and the star 8x; the red carpet adds 30%.
+    // VIPs pay 5x the price of their services, the bride and the star 3x (8x was far too much); the red carpet adds 30%.
     public int VipReward(Customer c)
     {
-        int x = c.special == Customer.Special.Vip ? 5 : 8;
+        int x = c.special == Customer.Special.Vip ? 5 : 3;
         return Mathf.RoundToInt(x * c.Plan.Sum(k => Price[(int)k]) * Multiplier * (Has("carpet") ? 1.3f : 1));
     }
 
