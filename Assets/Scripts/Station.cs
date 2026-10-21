@@ -237,11 +237,13 @@ public class Station : MonoBehaviour
         Missions.Served(kind, customer.Vip && customer.LastService);
         if (price > 0)
         {
-            // Each hired cashier rings up 25% of the payment herself (max 75%); the rest lands on the floor.
+            // Stations within reach of a staffed register are paid straight into it; the others drop the money on
+            // the floor. Reach grows with every hired cashier: 8 m, 12 m, then 16 m (the whole salon).
             var tills = Game.I.registers.Where(r => r.HasCashier).ToList();
-            int rung = price * tills.Count / 4;
-            if (rung > 0) tills[Random.Range(0, tills.Count)].Receive(rung, customer.transform.position + Vector3.up);
-            pile.Add(price - rung, customer.transform.position + Vector3.up);
+            float reach = 4 + 4 * tills.Count;
+            var till = tills.OrderBy(r => (r.Pad - Pad).sqrMagnitude).FirstOrDefault();
+            if (till && Vector3.Distance(till.Pad, Pad) <= reach) till.Receive(price, customer.transform.position + Vector3.up);
+            else pile.Add(price, customer.transform.position + Vector3.up);
             Fx.FloatText(SeatPos + Vector3.up * 2.6f, "+" + Game.Money(price) + " €", Fx.Hex("#3FA65E"));
         }
         Fx.Sfx("done");

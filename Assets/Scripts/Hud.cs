@@ -19,7 +19,7 @@ public class Hud : MonoBehaviour
     static readonly Color Mint = Fx.Hex("#5FD3A0");
 
     Canvas canvas;
-    RectTransform root, cashPill, stickBase, stickKnob, settingsButton, shopButton, missionButton, vipPill;
+    RectTransform root, cashPill, stickBase, stickKnob, settingsButton, shopButton, missionButton, pauseButton, vipPill;
     GameObject missionBadge, panel;
     Text cashText, toast, vipText;
     Vector2 origin;
@@ -128,6 +128,8 @@ public class Hud : MonoBehaviour
         return v;
     }
 
+    static float PauseBars(Vector2 p) => Mathf.Max(Box(p, new(-11, 0), new(6.5f, 20), 3), Box(p, new(11, 0), new(6.5f, 20), 3));
+
     static void Blend(ref Color dst, Color src, float a)
     {
         float outA = a + dst.a * (1 - a);
@@ -230,6 +232,7 @@ public class Hud : MonoBehaviour
         settingsButton = SideButton(Gear);
         shopButton = SideButton(Bag);
         missionButton = SideButton(List);
+        pauseButton = SideButton(PauseBars);
         missionBadge = Img(missionButton, Accent, new(34, 34), new(-22, -22)).gameObject;
         var badge = (RectTransform)missionBadge.transform;
         badge.anchorMin = badge.anchorMax = new(1, 1);
@@ -255,6 +258,7 @@ public class Hud : MonoBehaviour
         if (args.Contains("-settings")) Open(BuildSettings);
         if (args.Contains("-shop")) Open(BuildShop);
         if (args.Contains("-missions")) Open(BuildMissions);
+        if (args.Contains("-pause")) Open(BuildPause);
     }
 
     // ---------- Panels ----------
@@ -282,6 +286,16 @@ public class Hud : MonoBehaviour
         Destroy(panel);
         panel = null;
         Time.timeScale = 1;
+        AudioListener.pause = false;
+    }
+
+    // Every panel stops the game clock; the pause one also silences music and sounds.
+    void BuildPause(RectTransform dim)
+    {
+        AudioListener.pause = true;
+        var card = Card(dim, new(760, 560), "Pausa");
+        Txt(card, 46, Ink, new(0, 50), "Il salone ti aspetta!");
+        Button(card, "Riprendi", Accent, new(380, 115), new(0, -180), Close, 54);
     }
 
     RectTransform Card(RectTransform dim, Vector2 size, string title)
@@ -495,6 +509,7 @@ public class Hud : MonoBehaviour
         settingsButton.anchoredPosition = new(-30, -top - 35);
         shopButton.anchoredPosition = new(-30, -top - 175);
         missionButton.anchoredPosition = new(-30, -top - 315);
+        pauseButton.anchoredPosition = new(-30, -top - 455);
         punch = Mathf.MoveTowards(punch, 0, Time.unscaledDeltaTime * 0.6f);
         cashPill.localScale = Vector3.one * (1 + punch);
 
@@ -535,6 +550,7 @@ public class Hud : MonoBehaviour
             if (Hit(settingsButton)) { Open(BuildSettings); return; }
             if (Hit(shopButton)) { Open(BuildShop); return; }
             if (Hit(missionButton)) { Open(BuildMissions); return; }
+            if (Hit(pauseButton)) { Open(BuildPause); return; }
         }
 
         if (down) { origin = pos; dragging = true; }

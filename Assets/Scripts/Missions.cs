@@ -36,7 +36,7 @@ public static class Missions
         {
             if (list != null && listDay == DateTime.Today) return list;
             listDay = DateTime.Today;
-            list = PlayerPrefs.GetString("v3.mday") == Today ? Parse(PlayerPrefs.GetString("v3.missions", "")) : null;
+            list = PlayerPrefs.GetString("v4.mday") == Today ? Parse(PlayerPrefs.GetString("v4.missions", "")) : null;
             if (list == null || list.Count != 3) Generate();
             return list;
         }
@@ -55,21 +55,21 @@ public static class Missions
 
         var a = kinds[rng.Next(kinds.Count)];
         int serveGoal = 10 + rng.Next(11);
-        list.Add(new Mission { type = Type.Serve, kind = a, goal = serveGoal, reward = Round(serveGoal * Game.Price[(int)a] * game.Multiplier) });
+        list.Add(new Mission { type = Type.Serve, kind = a, goal = serveGoal, reward = Round(serveGoal * Game.Price[(int)a] * game.Multiplier / 3) });
 
         int earnGoal = Round(topPrice * (30 + rng.Next(30)));
-        list.Add(new Mission { type = Type.Earn, goal = earnGoal, reward = Round(earnGoal / 6) });
+        list.Add(new Mission { type = Type.Earn, goal = earnGoal, reward = Round(earnGoal / 18) });
 
         if (game.VipAvailable)
         {
             int vipGoal = 1 + rng.Next(2);
-            list.Add(new Mission { type = Type.Vip, goal = vipGoal, reward = Round(topPrice * 12 * vipGoal) });
+            list.Add(new Mission { type = Type.Vip, goal = vipGoal, reward = Round(topPrice * 4 * vipGoal) });
         }
         else
         {
             var b = kinds[rng.Next(kinds.Count)];
             int goal = 15 + rng.Next(16);
-            list.Add(new Mission { type = Type.Serve, kind = b, goal = goal, reward = Round(goal * Game.Price[(int)b] * game.Multiplier) });
+            list.Add(new Mission { type = Type.Serve, kind = b, goal = goal, reward = Round(goal * Game.Price[(int)b] * game.Multiplier / 3) });
         }
         Save();
     }
@@ -113,8 +113,8 @@ public static class Missions
     {
         if (!dirty || list == null) return;
         dirty = false;
-        PlayerPrefs.SetString("v3.mday", listDay.ToString("yyyy-MM-dd"));
-        PlayerPrefs.SetString("v3.missions", string.Join("|", list.Select(m =>
+        PlayerPrefs.SetString("v4.mday", listDay.ToString("yyyy-MM-dd"));
+        PlayerPrefs.SetString("v4.missions", string.Join("|", list.Select(m =>
             $"{(int)m.type}:{(int)m.kind}:{m.goal}:{m.progress}:{m.reward}:{(m.claimed ? 1 : 0)}")));
     }
 

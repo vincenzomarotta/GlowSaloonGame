@@ -66,7 +66,7 @@ public class UnlockZone : MonoBehaviour
         var d = game.player.transform.position - transform.position;
         bool inside = Mathf.Abs(d.x) < Size / 2 && Mathf.Abs(d.z) < Size / 2;
         stay = inside ? stay + Time.deltaTime : 0;
-        if (stay < 0.4f) { timer = 0; return; } // brief pause so walking across a tile does not spend
+        if (stay < 1.5f) { timer = 0; return; } // stand still a moment first: walking across a tile must not spend
 
         timer -= Time.deltaTime;
         while (timer <= 0 && game.cash > 0 && paid < cost)
